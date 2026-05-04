@@ -1,0 +1,14 @@
+build/
+out/
+.vs/
+.vscode/
+*.user
+*.suo
+*.ninja
+CMakeFiles/
+CMakeCache.txt
+Testing/
+_CPack_Packages/
+*.msi
+*.zip
+*.log
