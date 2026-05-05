@@ -1,6 +1,14 @@
-qt_add_executable(AwaKurageDownloader
+set(AWA_DESKTOP_SOURCES
     main.cpp
     ../../resources/awa_resources.qrc
+)
+
+if(WIN32)
+    list(APPEND AWA_DESKTOP_SOURCES windows/app.rc)
+endif()
+
+qt_add_executable(AwaKurageDownloader
+    ${AWA_DESKTOP_SOURCES}
 )
 
 qt_add_qml_module(AwaKurageDownloader
@@ -36,6 +44,12 @@ install(TARGETS AwaKurageDownloader
     BUNDLE DESTINATION .
     RUNTIME DESTINATION bin
 )
+
+if(WIN32)
+    install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/../../packaging/windows/AwaKurageDownloader.cmd"
+        DESTINATION .
+    )
+endif()
 
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/LOGO.png"
     DESTINATION bin/resources
