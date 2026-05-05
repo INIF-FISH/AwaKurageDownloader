@@ -593,10 +593,17 @@ ApplicationWindow {
                         color: panelDivider
                     }
 
-                    ColumnLayout {
+                    ScrollView {
+                        id: detailScrollView
                         anchors.fill: parent
                         anchors.margins: 22
-                        spacing: 16
+                        clip: true
+                        ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+                        ColumnLayout {
+                            width: detailScrollView.availableWidth
+                            spacing: 16
                         Text {
                             Layout.fillWidth: true
                             Layout.maximumWidth: parent.width
@@ -661,7 +668,7 @@ ApplicationWindow {
                             }
                             readonly property int cellSize: 7
                             readonly property int cellGap: 2
-                            readonly property int columnCount: Math.max(1, Math.floor((pieceGridViewport.availableWidth + cellGap) / (cellSize + cellGap)))
+                            readonly property int columnCount: Math.max(1, Math.floor((pieceGridViewport.width + cellGap) / (cellSize + cellGap)))
                             ColumnLayout {
                                 anchors.fill: parent
                                 anchors.margins: 12
@@ -681,55 +688,70 @@ ApplicationWindow {
                                         font.pixelSize: 12
                                     }
                                 }
-                                ScrollView {
+                                Item {
                                     id: pieceGridViewport
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     clip: true
-                                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
-                                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                                    background: Rectangle {
+
+                                    Rectangle {
+                                        anchors.fill: parent
                                         radius: 6
                                         color: AwaTheme.primaryPale
                                         border.color: AwaTheme.border
                                     }
-                                    Item {
-                                        id: pieceGridContent
-                                        width: pieceGridViewport.availableWidth
-                                        height: Math.max(pieceGridViewport.availableHeight,
-                                            detailPieceBar.fullPieceMap.length > 0
-                                                ? Math.ceil(detailPieceBar.fullPieceMap.length / detailPieceBar.columnCount)
-                                                    * (detailPieceBar.cellSize + detailPieceBar.cellGap) + detailPieceBar.cellGap
-                                                : pieceGridViewport.availableHeight)
-                                        visible: detailPieceBar.fullPieceMap.length > 0
 
-                                        Canvas {
-                                            id: pieceCanvas
-                                            anchors.fill: parent
-                                            onPaint: {
-                                                const ctx = getContext("2d")
-                                                ctx.clearRect(0, 0, width, height)
-                                                const map = detailPieceBar.fullPieceMap
-                                                const cell = detailPieceBar.cellSize
-                                                const gap = detailPieceBar.cellGap
-                                                const columns = detailPieceBar.columnCount
-                                                for (let i = 0; i < map.length; ++i) {
-                                                    const x = (i % columns) * (cell + gap)
-                                                    const y = Math.floor(i / columns) * (cell + gap)
-                                                    ctx.fillStyle = map.charAt(i) === "1" ? "#a9eec1" : "#dceeff"
-                                                    ctx.fillRect(x, y, cell, cell)
-                                                }
-                                            }
-                                            onWidthChanged: requestPaint()
-                                            onHeightChanged: requestPaint()
+                                    Flickable {
+                                        id: pieceGridFlick
+                                        anchors.fill: parent
+                                        clip: true
+                                        boundsBehavior: Flickable.StopAtBounds
+                                        contentWidth: width
+                                        contentHeight: pieceGridContent.height
+
+                                        ScrollBar.vertical: ScrollBar {
+                                            policy: ScrollBar.AsNeeded
                                         }
 
-                                        Connections {
-                                            target: detailPieceBar
-                                            function onFullPieceMapChanged() { pieceCanvas.requestPaint() }
-                                            function onColumnCountChanged() { pieceCanvas.requestPaint() }
+                                        Item {
+                                            id: pieceGridContent
+                                            width: pieceGridFlick.width
+                                            height: Math.max(pieceGridFlick.height,
+                                                detailPieceBar.fullPieceMap.length > 0
+                                                    ? Math.ceil(detailPieceBar.fullPieceMap.length / detailPieceBar.columnCount)
+                                                        * (detailPieceBar.cellSize + detailPieceBar.cellGap) + detailPieceBar.cellGap
+                                                    : pieceGridFlick.height)
+                                            visible: detailPieceBar.fullPieceMap.length > 0
+
+                                            Canvas {
+                                                id: pieceCanvas
+                                                anchors.fill: parent
+                                                onPaint: {
+                                                    const ctx = getContext("2d")
+                                                    ctx.clearRect(0, 0, width, height)
+                                                    const map = detailPieceBar.fullPieceMap
+                                                    const cell = detailPieceBar.cellSize
+                                                    const gap = detailPieceBar.cellGap
+                                                    const columns = detailPieceBar.columnCount
+                                                    for (let i = 0; i < map.length; ++i) {
+                                                        const x = (i % columns) * (cell + gap)
+                                                        const y = Math.floor(i / columns) * (cell + gap)
+                                                        ctx.fillStyle = map.charAt(i) === "1" ? "#a9eec1" : "#dceeff"
+                                                        ctx.fillRect(x, y, cell, cell)
+                                                    }
+                                                }
+                                                onWidthChanged: requestPaint()
+                                                onHeightChanged: requestPaint()
+                                            }
+
+                                            Connections {
+                                                target: detailPieceBar
+                                                function onFullPieceMapChanged() { pieceCanvas.requestPaint() }
+                                                function onColumnCountChanged() { pieceCanvas.requestPaint() }
+                                            }
                                         }
                                     }
+
                                     Text {
                                         anchors.centerIn: parent
                                         visible: detailPieceBar.fullPieceMap.length === 0
@@ -783,7 +805,8 @@ ApplicationWindow {
                             checked: rssService.autoDownloadEnabled()
                             onToggled: rssService.setAutoDownloadEnabled(checked)
                         }
-                        Item { Layout.fillHeight: true }
+                            Item { Layout.preferredHeight: 1 }
+                        }
                     }
                 }
             }
