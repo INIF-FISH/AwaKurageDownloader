@@ -59,6 +59,11 @@ int DownloadManager::optimisticSlots() const
     return m_optimisticSlots;
 }
 
+bool DownloadManager::seedOnCompletionEnabled() const
+{
+    return m_seedOnCompletionEnabled;
+}
+
 QString DownloadManager::trackerUrlsText() const
 {
     return m_trackerUrlsText;
@@ -111,6 +116,7 @@ void DownloadManager::setBackend(TorrentBackend* backend)
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);
     m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
     m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
+    m_backend->setSeedOnCompletionEnabled(m_seedOnCompletionEnabled);
     m_backend->setTrackers(parseTrackerUrls(m_trackerUrlsText));
     m_backend->loadPersistedTasks();
 }
@@ -197,6 +203,23 @@ void DownloadManager::setChokingStrategy(int chokingAlgorithm, int seedChokingAl
         m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
     }
     emit toastRequested(QStringLiteral("稀有块优先与上传博弈策略已应用"));
+}
+
+void DownloadManager::setSeedOnCompletionEnabled(bool enabled)
+{
+    if (m_seedOnCompletionEnabled == enabled) {
+        return;
+    }
+
+    m_seedOnCompletionEnabled = enabled;
+    emit seedingBehaviorChanged();
+
+    if (m_backend) {
+        m_backend->setSeedOnCompletionEnabled(m_seedOnCompletionEnabled);
+    }
+    emit toastRequested(m_seedOnCompletionEnabled
+        ? QStringLiteral("任务完成后将继续做种")
+        : QStringLiteral("任务完成后将停止做种"));
 }
 
 DownloadOptions DownloadManager::parseOptions(const QVariantMap& options) const

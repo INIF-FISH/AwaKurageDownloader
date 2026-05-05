@@ -93,6 +93,7 @@ int main(int argc, char* argv[])
         settings.seedChokingAlgorithm(),
         settings.uploadSlots(),
         settings.optimisticSlots());
+    manager.setSeedOnCompletionEnabled(settings.seedOnCompletionEnabled());
     manager.setTrackerUrlsText(settings.trackerUrlsText());
 
     awa::torrent::TorrentService torrentService;

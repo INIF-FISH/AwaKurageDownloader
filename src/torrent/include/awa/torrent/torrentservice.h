@@ -29,6 +29,7 @@ public:
     void setFilePriorities(const QString& id, const QVector<awa::core::FilePriority>& priorities) override;
     void setSpeedLimits(int downloadKiB, int uploadKiB) override;
     void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) override;
+    void setSeedOnCompletionEnabled(bool enabled) override;
     void setTrackers(const QStringList& trackers) override;
     void loadPersistedTasks() override;
 
@@ -62,6 +63,8 @@ private:
     int trackerHealthScore(const QString& tracker) const;
     void recordTrackerResult(const QString& tracker, bool success, int peers = 0);
     void reprioritizeTrackers();
+    bool hasActiveDownloads() const;
+    void updateSeedingPriority();
 
     std::unique_ptr<libtorrent::session> m_session;
     QTimer m_alertTimer;
@@ -74,8 +77,11 @@ private:
     QHash<QString, int> m_metadataRetryCounts;
     QHash<QString, TrackerHealth> m_trackerHealth;
     QSet<QString> m_removedIds;
+    QSet<QString> m_userPausedIds;
+    QSet<QString> m_priorityPausedSeeds;
     QStringList m_defaultTrackers;
     bool m_persistedTasksLoaded = false;
+    bool m_seedOnCompletionEnabled = true;
 };
 
 } // namespace awa::torrent

@@ -24,10 +24,11 @@ QString stateToString(DownloadState state)
     case DownloadState::Queued: return QStringLiteral("排队中");
     case DownloadState::FetchingMetadata: return QStringLiteral("获取元数据");
     case DownloadState::Downloading: return QStringLiteral("下载中");
-    case DownloadState::Paused: return QStringLiteral("已暂停");
+    case DownloadState::PausedDownloading: return QStringLiteral("暂停下载");
     case DownloadState::Seeding: return QStringLiteral("做种中");
     case DownloadState::Finished: return QStringLiteral("已完成");
     case DownloadState::Error: return QStringLiteral("错误");
+    case DownloadState::PausedSeeding: return QStringLiteral("暂停做种");
     }
     return QStringLiteral("未知");
 }

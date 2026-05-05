@@ -28,8 +28,25 @@ Rectangle {
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
     readonly property real remainingBytes: Math.max(0, totalBytes - downloadedBytes)
     readonly property real etaSeconds: downloadRate > 0 && remainingBytes > 0 ? remainingBytes / downloadRate : -1
-    readonly property bool completed: state === 4 || state === 5 || (totalBytes > 0 && progress >= 0.999)
-    readonly property bool paused: stateText === "已暂停" || stateText === "Paused"
+    readonly property bool completed: state === 4 || state === 5 || state === 7 || (totalBytes > 0 && progress >= 0.999)
+    readonly property bool seeding: state === 4 || state === 7
+    readonly property bool finished: state === 5
+    readonly property bool paused: state === 3 || state === 7
+    readonly property color rowColor: selected
+        ? (completed ? "#eefcf4" : "#f2f9ff")
+        : hoverHandler.hovered
+            ? (completed ? "#f6fdf8" : "#fbfdff")
+            : (completed ? "#f7fff9" : "#ffffff")
+    readonly property color accentColor: selected
+        ? (finished ? "#16a34a" : seeding ? "#0f9fb8" : "#2d8df0")
+        : hoverHandler.hovered
+            ? (finished ? "#22c55e" : seeding ? "#22cbd6" : "#80b8ee")
+            : (finished ? "#86efac" : seeding ? "#99f6e4" : completed ? "#b7ebc9" : "#d9ecff")
+    readonly property color badgeColor: finished ? "#ecfdf3" : seeding ? "#ecfeff" : "#eef7ff"
+    readonly property color badgeTextColor: finished ? "#15803d" : seeding ? "#0f766e" : "#dc2626"
+    readonly property color progressTrackColor: completed ? "#dcfce7" : "#fff3e6"
+    readonly property color progressTrackBorderColor: completed ? "#a7f3d0" : "#ffd7a8"
+    readonly property color progressFillColor: finished ? "#22c55e" : seeding ? "#14b8a6" : "#f97316"
 
     signal openDetails(var item)
     signal pauseTask(string id)
@@ -98,7 +115,7 @@ Rectangle {
     height: 118
     radius: AwaTheme.radiusMd
     clip: true
-    color: selected ? "#f2f9ff" : hoverHandler.hovered ? "#fbfdff" : AwaTheme.surface
+    color: rowColor
     border.width: 0
 
     Behavior on color { ColorAnimation { duration: 140 } }
@@ -109,7 +126,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: selected ? 5 : 3
-        color: selected ? AwaTheme.primary : hoverHandler.hovered ? AwaTheme.borderStrong : AwaTheme.primarySoft
+        color: accentColor
     }
 
     RowLayout {
@@ -121,14 +138,14 @@ Rectangle {
             Layout.preferredWidth: 48
             Layout.preferredHeight: 48
             radius: 12
-            color: AwaTheme.primaryPale
+            color: badgeColor
             border.width: 0
             Text {
                 anchors.centerIn: parent
-                text: "BT"
+                text: rowRoot.finished ? "OK" : rowRoot.seeding ? "SE" : "BT"
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                color: "#dc2626"
+                color: badgeTextColor
             }
         }
 
@@ -162,8 +179,8 @@ Rectangle {
                     background: Rectangle {
                         implicitHeight: 8
                         radius: 4
-                        color: "#fff3e6"
-                        border.color: "#ffd7a8"
+                        color: progressTrackColor
+                        border.color: progressTrackBorderColor
                     }
                     contentItem: Item {
                         implicitHeight: 8
@@ -171,7 +188,7 @@ Rectangle {
                             width: parent.width * rowRoot.progress
                             height: parent.height
                             radius: 4
-                            color: "#f97316"
+                            color: progressFillColor
                         }
                     }
                 }
@@ -203,7 +220,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: "↓ " + rowRoot.downloadKiB + " KiB/s"
-                color: AwaTheme.primary
+                color: rowRoot.completed ? rowRoot.progressFillColor : AwaTheme.primary
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignRight
@@ -212,7 +229,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: "↑ " + rowRoot.uploadKiB + " KiB/s"
-                color: "#16a34a"
+                color: rowRoot.finished ? "#15803d" : rowRoot.seeding ? "#0f766e" : "#16a34a"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight

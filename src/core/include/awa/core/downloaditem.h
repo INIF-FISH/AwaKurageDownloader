@@ -7,13 +7,14 @@
 namespace awa::core {
 
 enum class DownloadState {
-    Queued,
-    FetchingMetadata,
-    Downloading,
-    Paused,
-    Seeding,
-    Finished,
-    Error
+    Queued = 0,
+    FetchingMetadata = 1,
+    Downloading = 2,
+    PausedDownloading = 3,
+    Seeding = 4,
+    Finished = 5,
+    Error = 6,
+    PausedSeeding = 7
 };
 
 struct DownloadOptions {

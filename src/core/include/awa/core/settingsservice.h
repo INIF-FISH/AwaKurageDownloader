@@ -27,6 +27,8 @@ public:
     Q_INVOKABLE void setChokingAlgorithm(int algorithm);
     Q_INVOKABLE int seedChokingAlgorithm() const;
     Q_INVOKABLE void setSeedChokingAlgorithm(int algorithm);
+    Q_INVOKABLE bool seedOnCompletionEnabled() const;
+    Q_INVOKABLE void setSeedOnCompletionEnabled(bool enabled);
     Q_INVOKABLE int uploadSlots() const;
     Q_INVOKABLE void setUploadSlots(int slotCount);
     Q_INVOKABLE int optimisticSlots() const;

@@ -18,21 +18,22 @@ ApplicationWindow {
     property var selectedDownload: ({})
     property string toastText: ""
     property int currentPage: 0
+    property int downloadSectionTab: 0
     property int downloadsRevision: 0
     property int pieceMapRevision: 0
+    property int downloadingCount: 0
+    property int completedCount: 0
+    property int downloadingUnseenCount: 0
+    property int completedUnseenCount: 0
+    property var downloadTabSnapshot: ({})
     readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
+    readonly property int selectedState: selectedDownload.state === undefined ? -1 : selectedDownload.state
     readonly property string selectedStateText: selectedDownload.stateText || ""
-    readonly property bool selectedIsPaused: selectedStateText === "已暂停" || selectedStateText === "Paused"
-    readonly property bool selectedIsTerminal: selectedStateText === "已完成" || selectedStateText === "Finished" || selectedStateText === "错误" || selectedStateText === "Error"
+    readonly property bool selectedIsPaused: selectedState === 3 || selectedState === 7
+    readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6
     readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
     readonly property var pageTitles: ["下载任务", "RSS 订阅", "远程 API", "设置"]
-    readonly property var pageSubtitles: [
-        "种子、磁力、RSS 自动规则与远程控制",
-        "管理订阅源，并按规则自动添加磁力任务",
-        "本机 HTTP/WebSocket 控制接口",
-        "下载目录、限速和应用偏好"
-    ]
 
     readonly property color panelDivider: "#d8dee6"
 
@@ -86,6 +87,93 @@ ApplicationWindow {
     function showToast(message) {
         toastText = message
         toastPopup.open()
+    }
+
+    function isCompletedState(state) {
+        return state === 4 || state === 5 || state === 7
+    }
+
+    function matchesDownloadSection(item) {
+        if (!item || item.state === undefined) {
+            return false
+        }
+        return downloadSectionTab === 0 ? !isCompletedState(item.state) : isCompletedState(item.state)
+    }
+
+    function filteredDownloadCount() {
+        downloadsRevision
+        let count = 0
+        for (let i = 0; i < downloadManager.downloads.count(); ++i) {
+            if (matchesDownloadSection(downloadManager.downloads.get(i))) {
+                count += 1
+            }
+        }
+        return count
+    }
+
+    function downloadSectionForItem(item) {
+        if (!item || item.state === undefined) {
+            return -1
+        }
+        return isCompletedState(item.state) ? 1 : 0
+    }
+
+    function markCurrentDownloadTabSeen() {
+        if (currentPage !== 0) {
+            return
+        }
+        if (downloadSectionTab === 0) {
+            downloadingUnseenCount = 0
+        } else {
+            completedUnseenCount = 0
+        }
+    }
+
+    function refreshDownloadTabBadges(initialLoad) {
+        const nextSnapshot = ({})
+        let nextDownloadingCount = 0
+        let nextCompletedCount = 0
+        let nextDownloadingUnseen = downloadingUnseenCount
+        let nextCompletedUnseen = completedUnseenCount
+
+        for (let i = 0; i < downloadManager.downloads.count(); ++i) {
+            const item = downloadManager.downloads.get(i)
+            if (!item || !item.downloadId) {
+                continue
+            }
+
+            const section = downloadSectionForItem(item)
+            nextSnapshot[item.downloadId] = section
+            if (section === 0) {
+                nextDownloadingCount += 1
+            } else if (section === 1) {
+                nextCompletedCount += 1
+            }
+
+            const previousSection = downloadTabSnapshot[item.downloadId]
+            if (!initialLoad && section >= 0 && previousSection !== section) {
+                if (!(currentPage === 0 && downloadSectionTab === section)) {
+                    if (section === 0) {
+                        nextDownloadingUnseen += 1
+                    } else {
+                        nextCompletedUnseen += 1
+                    }
+                }
+            }
+        }
+
+        downloadTabSnapshot = nextSnapshot
+        downloadingCount = nextDownloadingCount
+        completedCount = nextCompletedCount
+        downloadingUnseenCount = nextDownloadingUnseen
+        completedUnseenCount = nextCompletedUnseen
+        markCurrentDownloadTabSeen()
+    }
+
+    function downloadTabLabel(baseText, count, unseenCount) {
+        return unseenCount > 0
+            ? baseText + " " + count + "  +" + unseenCount
+            : baseText + " " + count
     }
 
     function roleListContains(roles, role) {
@@ -144,11 +232,13 @@ ApplicationWindow {
             downloadsRevision += 1
             pieceMapRevision += 1
             refreshSelectedDownload()
+            refreshDownloadTabBadges(false)
         }
         function onRowsRemoved(parent, first, last) {
             downloadsRevision += 1
             pieceMapRevision += 1
             if (selectedDownloadId.length === 0) {
+                refreshDownloadTabBadges(false)
                 return
             }
 
@@ -159,6 +249,7 @@ ApplicationWindow {
                 selectedDownloadId = ""
                 selectedDownload = ({})
             }
+            refreshDownloadTabBadges(false)
         }
         function onDataChanged(topLeft, bottomRight, roles) {
             downloadsRevision += 1
@@ -166,13 +257,20 @@ ApplicationWindow {
                 pieceMapRevision += 1
             }
             refreshSelectedDownload()
+            refreshDownloadTabBadges(false)
         }
         function onModelReset() {
             downloadsRevision += 1
             pieceMapRevision += 1
             refreshSelectedDownload()
+            refreshDownloadTabBadges(false)
         }
     }
+
+    onCurrentPageChanged: markCurrentDownloadTabSeen()
+    onDownloadSectionTabChanged: markCurrentDownloadTabSeen()
+
+    Component.onCompleted: refreshDownloadTabBadges(true)
 
     FileDialog {
         id: torrentDialog
@@ -454,7 +552,7 @@ ApplicationWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 86
+                Layout.preferredHeight: currentPage === 0 ? 122 : 86
                 color: "#fafdff"
                 border.width: 0
 
@@ -474,21 +572,97 @@ ApplicationWindow {
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 3
+                        spacing: currentPage === 0 ? 8 : 3
                         Text { text: pageTitles[currentPage]; color: AwaTheme.ink; font.pixelSize: 25; font.weight: Font.DemiBold }
-                        Text { text: pageSubtitles[currentPage]; color: AwaTheme.muted; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Rectangle {
+                            visible: currentPage === 0
+                            Layout.topMargin: 0
+                            Layout.preferredHeight: 40
+                            Layout.preferredWidth: 360
+                            radius: AwaTheme.radiusMd
+                            color: "#edf4fb"
+                            border.color: "#d7e3ef"
+                            border.width: 1
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 4
+                                spacing: 0
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 32
+                                    radius: AwaTheme.radiusSm
+                                    color: downloadSectionTab === 0 ? "#ffffff" : "transparent"
+                                    border.width: downloadSectionTab === 0 ? 1 : 0
+                                    border.color: "#c8d8e8"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: downloadTabLabel("下载中", downloadingCount, downloadingUnseenCount)
+                                        color: downloadSectionTab === 0 ? AwaTheme.ink : AwaTheme.inkSoft
+                                        font.pixelSize: 13
+                                        font.weight: downloadSectionTab === 0 ? Font.DemiBold : Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+
+                                    TapHandler {
+                                        onTapped: {
+                                            downloadSectionTab = 0
+                                            if (hasSelectedDownload && !matchesDownloadSection(selectedDownload)) {
+                                                selectedDownloadId = ""
+                                                selectedDownload = ({})
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 32
+                                    radius: AwaTheme.radiusSm
+                                    color: downloadSectionTab === 1 ? "#ffffff" : "transparent"
+                                    border.width: downloadSectionTab === 1 ? 1 : 0
+                                    border.color: "#c8d8e8"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: downloadTabLabel("已完成", completedCount, completedUnseenCount)
+                                        color: downloadSectionTab === 1 ? AwaTheme.ink : AwaTheme.inkSoft
+                                        font.pixelSize: 13
+                                        font.weight: downloadSectionTab === 1 ? Font.DemiBold : Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+
+                                    TapHandler {
+                                        onTapped: {
+                                            downloadSectionTab = 1
+                                            if (hasSelectedDownload && !matchesDownloadSection(selectedDownload)) {
+                                                selectedDownloadId = ""
+                                                selectedDownload = ({})
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    AcidButton {
+                    Item { Layout.fillWidth: true }
+
+                    RowLayout {
                         visible: currentPage === 0
-                        text: "添加磁力"
-                        tone: "primary"
-                        onClicked: magnetDialog.open()
-                    }
-                    AcidButton {
-                        visible: currentPage === 0
-                        text: "选择种子"
-                        onClicked: torrentDialog.open()
+                        spacing: 12
+
+                        AcidButton {
+                            text: "添加磁力"
+                            tone: "primary"
+                            onClicked: magnetDialog.open()
+                        }
+                        AcidButton {
+                            text: "选择种子"
+                            onClicked: torrentDialog.open()
+                        }
                     }
                 }
             }
@@ -541,6 +715,8 @@ ApplicationWindow {
                                 downloadsRevision
                                 return downloadManager.downloads.get(index)
                             }
+                            visible: matchesDownloadSection(itemData)
+                            height: visible ? 118 : 0
                             rowIndex: index
                             selected: selectedDownloadId === itemData.downloadId
                             onOpenDetails: function(item) { selectDownload(item.downloadId, item) }
@@ -556,14 +732,15 @@ ApplicationWindow {
                             anchors.leftMargin: Math.max(28, Math.round(parent.width * 0.1))
                             width: Math.min(460, parent.width - 56)
                             height: 236
-                            visible: listView.count === 0
+                            visible: filteredDownloadCount() === 0
                             ColumnLayout {
                                 anchors.fill: parent
                                 anchors.margins: 24
                                 spacing: 14
-                                Text { text: "暂无下载任务"; color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
-                                Text { Layout.fillWidth: true; text: "拖入 .torrent 文件，或添加磁力链接"; color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                Text { text: downloadSectionTab === 0 ? "暂无下载中的任务" : "暂无已完成的任务"; color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
+                                Text { Layout.fillWidth: true; text: downloadSectionTab === 0 ? "拖入 .torrent 文件，或添加磁力链接" : "完成后的任务会出现在这里"; color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                 RowLayout {
+                                    visible: downloadSectionTab === 0
                                     Layout.alignment: Qt.AlignHCenter
                                     AcidButton { text: "添加磁力"; tone: "primary"; onClicked: magnetDialog.open() }
                                     AcidButton { text: "选择种子"; onClicked: torrentDialog.open() }
@@ -593,22 +770,23 @@ ApplicationWindow {
                         id: detailScrollView
                         anchors.fill: parent
                         anchors.margins: 22
+                        anchors.topMargin: 64
                         clip: true
-                        ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                        ScrollBar.vertical.policy: ScrollBar.AlwaysOff
                         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
                         ColumnLayout {
                             width: detailScrollView.availableWidth
                             spacing: 16
-                        Text {
-                            Layout.fillWidth: true
-                            Layout.maximumWidth: parent.width
-                            text: selectedDownload.name || "任务详情"
-                            color: AwaTheme.ink
-                            font.pixelSize: 19
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.maximumWidth: parent.width
+                                text: selectedDownload.name || "任务详情"
+                                color: AwaTheme.ink
+                                font.pixelSize: 19
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
                         ProgressBar {
                             Layout.fillWidth: true
                             from: 0
@@ -701,12 +879,29 @@ ApplicationWindow {
                                         id: pieceGridFlick
                                         anchors.fill: parent
                                         clip: true
+                                        flickableDirection: Flickable.VerticalFlick
                                         boundsBehavior: Flickable.StopAtBounds
                                         contentWidth: width
                                         contentHeight: pieceGridContent.height
 
                                         ScrollBar.vertical: ScrollBar {
-                                            policy: ScrollBar.AsNeeded
+                                            policy: ScrollBar.AlwaysOff
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            acceptedButtons: Qt.NoButton
+                                            onWheel: function(wheel) {
+                                                if (pieceGridFlick.contentHeight <= pieceGridFlick.height) {
+                                                    wheel.accepted = true
+                                                    return
+                                                }
+
+                                                const nextY = pieceGridFlick.contentY - wheel.angleDelta.y
+                                                pieceGridFlick.contentY = Math.max(0,
+                                                    Math.min(pieceGridFlick.contentHeight - pieceGridFlick.height, nextY))
+                                                wheel.accepted = true
+                                            }
                                         }
 
                                         Item {
@@ -804,7 +999,25 @@ ApplicationWindow {
                             checked: rssService.autoDownloadEnabled()
                             onToggled: rssService.setAutoDownloadEnabled(checked)
                         }
-                            Item { Layout.preferredHeight: 1 }
+                        Item { Layout.preferredHeight: 1 }
+                    }
+                    }
+
+                    AcidToolButton {
+                        visible: hasSelectedDownload
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.topMargin: 18
+                        anchors.rightMargin: 18
+                        implicitWidth: 34
+                        implicitHeight: 34
+                        z: 2
+                        text: "X"
+                        ToolTip.visible: hovered
+                        ToolTip.text: "关闭详情"
+                        onClicked: {
+                            selectedDownloadId = ""
+                            selectedDownload = ({})
                         }
                     }
                 }
@@ -1046,6 +1259,13 @@ ApplicationWindow {
                                         model: ["轮询", "最快上传优先", "反吸血博弈"]
                                         currentIndex: downloadManager.seedChokingAlgorithm
                                     }
+                                    LabelText { text: "完成后做种" }
+                                    Switch {
+                                        id: seedOnCompletionSwitch
+                                        Layout.fillWidth: true
+                                        checked: downloadManager.seedOnCompletionEnabled
+                                        text: checked ? "继续做种" : "完成即停止"
+                                    }
                                     LabelText { text: "上传槽位" }
                                     SpinBox { id: uploadSlotsSpin; Layout.fillWidth: true; from: 1; to: 200; value: downloadManager.uploadSlots }
                                     LabelText { text: "乐观解阻塞槽位" }
@@ -1056,8 +1276,10 @@ ApplicationWindow {
                                         tone: "primary"
                                         onClicked: {
                                             downloadManager.setChokingStrategy(chokingAlgorithmBox.currentIndex, seedChokingAlgorithmBox.currentIndex, uploadSlotsSpin.value, optimisticSlotsSpin.value)
+                                            downloadManager.setSeedOnCompletionEnabled(seedOnCompletionSwitch.checked)
                                             settingsService.setChokingAlgorithm(chokingAlgorithmBox.currentIndex)
                                             settingsService.setSeedChokingAlgorithm(seedChokingAlgorithmBox.currentIndex)
+                                            settingsService.setSeedOnCompletionEnabled(seedOnCompletionSwitch.checked)
                                             settingsService.setUploadSlots(uploadSlotsSpin.value)
                                             settingsService.setOptimisticSlots(optimisticSlotsSpin.value)
                                         }

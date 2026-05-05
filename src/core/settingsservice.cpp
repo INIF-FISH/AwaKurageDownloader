@@ -134,6 +134,18 @@ void SettingsService::setSeedChokingAlgorithm(int algorithm)
     settings.setValue(QStringLiteral("torrent/seedChokingAlgorithm"), std::clamp(algorithm, 0, 2));
 }
 
+bool SettingsService::seedOnCompletionEnabled() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    return settings.value(QStringLiteral("torrent/seedOnCompletionEnabled"), true).toBool();
+}
+
+void SettingsService::setSeedOnCompletionEnabled(bool enabled)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("torrent/seedOnCompletionEnabled"), enabled);
+}
+
 int SettingsService::uploadSlots() const
 {
     QSettings settings(m_settingsPath, QSettings::IniFormat);

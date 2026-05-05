@@ -25,6 +25,7 @@ public:
     virtual void setFilePriorities(const QString& id, const QVector<FilePriority>& priorities) = 0;
     virtual void setSpeedLimits(int downloadKiB, int uploadKiB) = 0;
     virtual void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) = 0;
+    virtual void setSeedOnCompletionEnabled(bool enabled) { (void)enabled; }
     virtual void setTrackers(const QStringList& trackers) {}
     virtual void loadPersistedTasks() {}
 
@@ -44,6 +45,7 @@ class DownloadManager final : public QObject {
     Q_PROPERTY(int seedChokingAlgorithm READ seedChokingAlgorithm NOTIFY chokingStrategyChanged)
     Q_PROPERTY(int uploadSlots READ uploadSlots NOTIFY chokingStrategyChanged)
     Q_PROPERTY(int optimisticSlots READ optimisticSlots NOTIFY chokingStrategyChanged)
+    Q_PROPERTY(bool seedOnCompletionEnabled READ seedOnCompletionEnabled NOTIFY seedingBehaviorChanged)
     Q_PROPERTY(QString trackerUrlsText READ trackerUrlsText WRITE setTrackerUrlsText NOTIFY trackersChanged)
 
 public:
@@ -58,6 +60,7 @@ public:
     int seedChokingAlgorithm() const;
     int uploadSlots() const;
     int optimisticSlots() const;
+    bool seedOnCompletionEnabled() const;
     QString trackerUrlsText() const;
     void setTrackerUrlsText(const QString& text);
     void setBackend(TorrentBackend* backend);
@@ -70,11 +73,13 @@ public:
     Q_INVOKABLE void openSavePath(const QString& id);
     Q_INVOKABLE void setSpeedLimits(int downloadKiB, int uploadKiB);
     Q_INVOKABLE void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots);
+    Q_INVOKABLE void setSeedOnCompletionEnabled(bool enabled);
 
 signals:
     void defaultSavePathChanged();
     void speedLimitsChanged();
     void chokingStrategyChanged();
+    void seedingBehaviorChanged();
     void trackersChanged();
     void toastRequested(const QString& message);
 
@@ -91,6 +96,7 @@ private:
     int m_seedChokingAlgorithm = 2;
     int m_uploadSlots = 8;
     int m_optimisticSlots = 1;
+    bool m_seedOnCompletionEnabled = true;
     QString m_trackerUrlsText;
 };
 
