@@ -1,61 +1,117 @@
 # AwaKurageDownloader
 
-AwaKurageDownloader is a C++20/CMake BitTorrent desktop downloader with a Qt Quick UI, libtorrent backend, RSS automation, local control API, and Windows MSI packaging.
+> 面向番剧资源获取场景优化的高效下载工具
 
-## Features
+---
 
-- Add `.torrent` files and magnet links.
-- Pause, resume, remove, and inspect download tasks.
-- libtorrent-backed session with DHT, LSD, UPnP, NAT-PMP, uTP, and tracker alerts.
-- RSS subscription service with rule matching and opt-in auto-download.
-- Local loopback HTTP/WebSocket API.
-- Modern Qt Quick interface with task animations and drag-and-drop.
-- CPack/WiX packaging path for Windows MSI output.
+## 项目简介
 
-## Build
+**AwaKurageDownloader** 是一款针对番剧资源分发特点设计的下载工具，强调在高频更新、批量获取与长期维护场景下的稳定性与效率。
 
-Install Visual Studio 2022, CMake, vcpkg, Qt dependencies through vcpkg, and WiX Toolset for packaging.
+在实际使用中，番剧资源往往具有 **更新周期固定、分发节点波动大、资源冷热差异明显** 等特点。本项目围绕这些特性进行优化，使下载过程更加可控、可靠。
 
-```powershell
-cmake --preset windows-msvc
-cmake --build --preset windows-msvc --config RelWithDebInfo
-ctest --preset default
-cmake --build build/windows-msvc --target package --config RelWithDebInfo
+---
+
+## 核心能力
+
+### 高效传输
+
+* 基于分布式传输网络（BT / P2P）
+* 多节点并行连接与动态调度
+* 针对热门与冷门资源均提供稳定策略
+
+### 任务管理
+
+* 支持多任务并行与队列化调度
+* 长周期运行稳定（适合整季资源获取）
+* 断点续传与任务状态持久化
+
+### 状态可观测
+
+* 实时显示下载进度与速率
+* peers / seeds 状态清晰可见
+* 上传 / 下载行为透明，便于判断资源健康度
+
+### 自动化获取
+
+* 支持 RSS 订阅（适用于连载更新场景）
+* 自动解析 torrent / magnet 链接
+* 可构建持续更新的番剧获取流程
+
+---
+
+## 设计思路（面向番剧场景）
+
+针对常见使用习惯进行了以下优化：
+
+* **周期性更新**：适配每周更新节奏，减少手动干预
+* **整季获取**：支持批量任务管理，降低重复操作成本
+* **资源波动**：在低活跃资源情况下保持连接与重试策略
+* **可判断性**：通过状态信息快速判断资源质量（是否值得继续等待）
+
+---
+
+## 适用场景
+
+* 新番连载自动跟进
+* 番剧整季批量获取
+* 长时间挂机下载任务
+* 对资源连接状态有判断需求的用户
+
+---
+
+## 使用方式
+
+```bash id="v9k2dx"
+# 克隆项目
+git clone https://github.com/INIF-FISH/AwaKurageDownloader.git
+
+# 进入目录
+cd AwaKurageDownloader
+
+# 根据项目结构进行构建或运行
 ```
 
-The first configure can take a long time because Qt, Boost, and libtorrent are resolved by vcpkg.
+---
 
-## Layout
+## 性能说明
 
-- `apps/desktop`: Qt Quick desktop shell and QML.
-- `src/core`: download models, settings, and facade.
-- `src/torrent`: libtorrent session adapter.
-- `src/rss`: RSS feed refresh and matching.
-- `src/api`: local HTTP/WebSocket API.
-- `packaging/windows`: Windows packaging notes.
-- `docs`: architecture and packaging notes.
-- `tests`: Catch2 tests.
+下载表现主要取决于：
+
+* 资源热度（节点数量）
+* 分发网络状态（Tracker / DHT）
+* 本地网络环境
+
+一般规律：
+
+* **当季新番**：节点活跃，速度较高
+* **冷门旧番**：节点稀少，需要更长时间建立连接
+
+本工具在低活跃资源场景下会持续进行连接维护与调度优化，以提升成功率。
+
+---
+
+## 项目状态
+
+项目仍在持续开发中，部分功能处于迭代阶段。
+欢迎通过 Issue 或 Pull Request 提供反馈或参与改进。
+
+---
+
+## 贡献方向
+
+* 分发网络优化（Tracker / DHT 策略）
+* 下载调度与连接管理优化
+* 自动化订阅与任务系统扩展
+* 状态分析与可视化能力增强
+
+---
 
 ## License
 
-MIT License
+详见仓库 License 文件。
 
-Copyright (c) 2026 AwaKurageDownloader Contributors
+---
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+**AwaKurageDownloader**
+为稳定获取番剧资源而设计的下载工具
