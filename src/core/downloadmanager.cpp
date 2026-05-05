@@ -1,8 +1,10 @@
 #include "awa/core/downloadmanager.h"
 
+#include <QDesktopServices>
 #include <QDir>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QUrl>
 
 #include <algorithm>
 
@@ -149,6 +151,25 @@ void DownloadManager::remove(const QString& id, bool removeFiles)
 {
     if (m_backend) {
         m_backend->remove(id, removeFiles);
+    }
+}
+
+void DownloadManager::openSavePath(const QString& id)
+{
+    const auto item = m_downloads.itemById(id);
+    if (item.id.isEmpty() || item.savePath.isEmpty()) {
+        emit toastRequested(QStringLiteral("保存目录不可用"));
+        return;
+    }
+
+    const QDir directory(item.savePath);
+    if (!directory.exists()) {
+        emit toastRequested(QStringLiteral("保存目录不存在"));
+        return;
+    }
+
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(directory.absolutePath()))) {
+        emit toastRequested(QStringLiteral("无法打开保存目录"));
     }
 }
 

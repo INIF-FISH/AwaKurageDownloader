@@ -67,6 +67,7 @@ public:
     Q_INVOKABLE void pause(const QString& id);
     Q_INVOKABLE void resume(const QString& id);
     Q_INVOKABLE void remove(const QString& id, bool removeFiles);
+    Q_INVOKABLE void openSavePath(const QString& id);
     Q_INVOKABLE void setSpeedLimits(int downloadKiB, int uploadKiB);
     Q_INVOKABLE void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots);
 

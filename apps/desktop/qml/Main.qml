@@ -143,11 +143,7 @@ ApplicationWindow {
         function onRowsInserted(parent, first, last) {
             downloadsRevision += 1
             pieceMapRevision += 1
-            if (selectedDownloadId.length === 0 && first >= 0) {
-                selectDownload(downloadManager.downloads.get(first).downloadId)
-            } else {
-                refreshSelectedDownload()
-            }
+            refreshSelectedDownload()
         }
         function onRowsRemoved(parent, first, last) {
             downloadsRevision += 1
@@ -159,8 +155,6 @@ ApplicationWindow {
             const row = downloadManager.downloads.indexOfId(selectedDownloadId)
             if (row >= 0) {
                 refreshSelectedDownload()
-            } else if (downloadManager.downloads.count() > 0) {
-                selectDownload(downloadManager.downloads.get(0).downloadId)
             } else {
                 selectedDownloadId = ""
                 selectedDownload = ({})
@@ -552,6 +546,7 @@ ApplicationWindow {
                             onOpenDetails: function(item) { selectDownload(item.downloadId, item) }
                             onPauseTask: function(id) { downloadManager.pause(id) }
                             onResumeTask: function(id) { downloadManager.resume(id) }
+                            onOpenFolder: function(id) { downloadManager.openSavePath(id) }
                             onRemoveTask: function(id) { downloadManager.remove(id, false) }
                         }
 
@@ -580,6 +575,7 @@ ApplicationWindow {
 
                 Rectangle {
                     id: detailPane
+                    visible: hasSelectedDownload
                     SplitView.preferredWidth: 376
                     SplitView.minimumWidth: 316
                     color: "#fafdff"
@@ -736,7 +732,8 @@ ApplicationWindow {
                                                     for (let i = 0; i < map.length; ++i) {
                                                         const x = (i % columns) * (cell + gap)
                                                         const y = Math.floor(i / columns) * (cell + gap)
-                                                        ctx.fillStyle = map.charAt(i) === "1" ? "#a9eec1" : "#dceeff"
+                                                        const state = map.charAt(i)
+                                                        ctx.fillStyle = state === "1" ? "#a9eec1" : state === "2" ? "#fff2a8" : "#dceeff"
                                                         ctx.fillRect(x, y, cell, cell)
                                                     }
                                                 }
@@ -765,6 +762,8 @@ ApplicationWindow {
                                     spacing: 10
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#a9eec1"; border.color: "#6fcf8d" }
                                     Text { text: "已完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#fff2a8"; border.color: "#e5c84c" }
+                                    Text { text: "下载中"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#dceeff"; border.color: AwaTheme.border }
                                     Text { text: "未完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Item { Layout.fillWidth: true }

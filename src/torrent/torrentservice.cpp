@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <vector>
 
 namespace awa::torrent {
 namespace lt = libtorrent;
@@ -39,7 +40,7 @@ QString hashId(const lt::info_hash_t& hashes)
     return QString::fromLatin1(QByteArray(best.data(), best.size()).toHex());
 }
 
-QString pieceMap(const lt::typed_bitfield<lt::piece_index_t>& pieces)
+QString pieceMap(const lt::typed_bitfield<lt::piece_index_t>& pieces, const std::vector<lt::partial_piece_info>& downloadingPieces = {})
 {
     const int total = pieces.size();
     if (total <= 0) {
@@ -50,6 +51,13 @@ QString pieceMap(const lt::typed_bitfield<lt::piece_index_t>& pieces)
     map.reserve(total);
     for (int piece = 0; piece < total; ++piece) {
         map.append(pieces.get_bit(lt::piece_index_t(piece)) ? QLatin1Char('1') : QLatin1Char('0'));
+    }
+    for (const auto& pieceInfo : downloadingPieces) {
+        const int piece = static_cast<int>(pieceInfo.piece_index);
+        if (piece >= 0 && piece < total && map.at(piece) != QLatin1Char('1')
+            && (pieceInfo.requested > 0 || pieceInfo.writing > 0 || pieceInfo.finished > 0)) {
+            map[piece] = QLatin1Char('2');
+        }
     }
     return map;
 }
@@ -752,8 +760,6 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
         | lt::torrent_handle::query_name
         | lt::torrent_handle::query_pieces);
     awa::core::DownloadItem item = m_items.value(handleId(handle));
-    const int previousPieceCount = item.pieceCount;
-    const int previousCompletedPieces = item.completedPieces;
     item.id = handleId(handle);
     item.name = QString::fromStdString(status.name);
     item.savePath = QString::fromStdString(status.save_path);
@@ -765,11 +771,9 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
     item.pieceCount = status.pieces.size();
     item.completedPieces = status.num_pieces;
     item.blockSize = status.block_size;
-    if (item.pieceMap.isEmpty()
-        || previousPieceCount != status.pieces.size()
-        || previousCompletedPieces != status.num_pieces) {
-        item.pieceMap = pieceMap(status.pieces);
-    }
+    std::vector<lt::partial_piece_info> downloadingPieces;
+    handle.get_download_queue(downloadingPieces);
+    item.pieceMap = pieceMap(status.pieces, downloadingPieces);
     item.ratio = status.all_time_download > 0
         ? static_cast<double>(status.all_time_upload) / static_cast<double>(status.all_time_download)
         : 0.0;

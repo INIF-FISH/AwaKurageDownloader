@@ -8,6 +8,7 @@ Rectangle {
     readonly property string downloadId: itemData.downloadId || ""
     readonly property string taskName: itemData.name || ""
     readonly property string stateText: itemData.stateText || ""
+    readonly property int state: itemData.state === undefined ? -1 : itemData.state
     readonly property string statusText: itemData.statusText || ""
     readonly property real progress: itemData.progress || 0
     readonly property real downloadRate: itemData.downloadRate || 0
@@ -27,11 +28,13 @@ Rectangle {
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
     readonly property real remainingBytes: Math.max(0, totalBytes - downloadedBytes)
     readonly property real etaSeconds: downloadRate > 0 && remainingBytes > 0 ? remainingBytes / downloadRate : -1
+    readonly property bool completed: state === 4 || state === 5 || (totalBytes > 0 && progress >= 0.999)
     readonly property bool paused: stateText === "已暂停" || stateText === "Paused"
 
     signal openDetails(var item)
     signal pauseTask(string id)
     signal resumeTask(string id)
+    signal openFolder(string id)
     signal removeTask(string id)
 
     function formatBytes(bytes) {
@@ -77,6 +80,7 @@ Rectangle {
             "downloadId": downloadId,
             "rowIndex": rowIndex,
             "name": taskName,
+            "state": state,
             "stateText": stateText,
             "statusText": statusText,
             "progress": progress,
@@ -238,6 +242,7 @@ Rectangle {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 text: "||"
+                visible: !rowRoot.completed
                 enabled: rowRoot.downloadId.length > 0 && !rowRoot.paused
                 ToolTip.visible: hovered
                 ToolTip.text: "Pause"
@@ -248,10 +253,22 @@ Rectangle {
                 Layout.preferredHeight: 36
                 text: "▶"
                 tone: "primary"
+                visible: !rowRoot.completed
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.paused
                 ToolTip.visible: hovered
                 ToolTip.text: "Resume"
                 onClicked: rowRoot.resumeTask(rowRoot.downloadId)
+            }
+            AcidToolButton {
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                text: "\uD83D\uDCC1"
+                tone: "primary"
+                visible: rowRoot.completed
+                enabled: rowRoot.downloadId.length > 0 && rowRoot.savePath.length > 0
+                ToolTip.visible: hovered
+                ToolTip.text: "Open folder"
+                onClicked: rowRoot.openFolder(rowRoot.downloadId)
             }
             AcidToolButton {
                 Layout.preferredWidth: 36
