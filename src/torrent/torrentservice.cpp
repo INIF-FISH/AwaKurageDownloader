@@ -74,6 +74,26 @@ bool hasMeaningfulTransferSnapshot(const lt::torrent_status& status)
             || status.is_seeding);
 }
 
+bool isPausedState(awa::core::DownloadState state)
+{
+    return state == awa::core::DownloadState::PausedDownloading
+        || state == awa::core::DownloadState::PausedSeeding;
+}
+
+bool isCompletedState(awa::core::DownloadState state)
+{
+    return state == awa::core::DownloadState::Finished
+        || state == awa::core::DownloadState::Seeding
+        || state == awa::core::DownloadState::PausedSeeding;
+}
+
+bool shouldPauseAsSeeding(awa::core::DownloadState state)
+{
+    return state == awa::core::DownloadState::Seeding
+        || state == awa::core::DownloadState::Finished
+        || state == awa::core::DownloadState::PausedSeeding;
+}
+
 awa::core::DownloadState stateFromInt(int state)
 {
     switch (state) {
@@ -386,9 +406,7 @@ void TorrentService::pause(const QString& id)
         if (item.id.isEmpty()) {
             item.id = id;
         }
-        item.state = previousItem.state == awa::core::DownloadState::Seeding
-            || previousItem.state == awa::core::DownloadState::Finished
-            || previousItem.state == awa::core::DownloadState::PausedSeeding
+        item.state = shouldPauseAsSeeding(previousItem.state)
             ? awa::core::DownloadState::PausedSeeding
             : awa::core::DownloadState::PausedDownloading;
         item.downloadRate = 0;
@@ -556,8 +574,7 @@ void TorrentService::loadPersistedTasks()
             continue;
         }
         const bool userPaused = object.value(QStringLiteral("userPaused")).toBool()
-            || stored.state == awa::core::DownloadState::PausedDownloading
-            || stored.state == awa::core::DownloadState::PausedSeeding;
+            || isPausedState(stored.state);
 
         lt::error_code ec;
         lt::add_torrent_params params;
@@ -601,10 +618,7 @@ void TorrentService::loadPersistedTasks()
             || pieceCountMatches
             || (params.finished_time > 0 && params.total_downloaded > 0 && params.unfinished_pieces.empty());
         const bool restoreAsCompleted = resumeSuggestsCompleted
-            && (stored.state == awa::core::DownloadState::PausedDownloading
-                || stored.state == awa::core::DownloadState::PausedSeeding
-                || stored.state == awa::core::DownloadState::Finished
-                || stored.state == awa::core::DownloadState::Seeding);
+            && (stored.state == awa::core::DownloadState::PausedDownloading || isCompletedState(stored.state));
         applyTrackers(params);
         params.flags &= ~lt::torrent_flags::auto_managed;
         params.flags &= ~lt::torrent_flags::sequential_download;
@@ -651,9 +665,7 @@ void TorrentService::loadPersistedTasks()
         }
         if (userPaused) {
             restored.state = restoreAsCompleted
-                || stored.state == awa::core::DownloadState::PausedSeeding
-                || stored.state == awa::core::DownloadState::Seeding
-                || stored.state == awa::core::DownloadState::Finished
+                || shouldPauseAsSeeding(stored.state)
                 ? awa::core::DownloadState::PausedSeeding
                 : awa::core::DownloadState::PausedDownloading;
             restored.statusText = awa::core::stateToString(restored.state);
@@ -1032,8 +1044,7 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
         && status.has_metadata
         && status.progress_ppm >= 1000000;
     const bool preserveStoredPausedState = !hasTransferSnapshot
-        && (previousState == awa::core::DownloadState::PausedDownloading
-            || previousState == awa::core::DownloadState::PausedSeeding);
+        && isPausedState(previousState);
     const bool preserveStoredCompletedState = !hasTransferSnapshot
         && (previousState == awa::core::DownloadState::Finished
             || previousState == awa::core::DownloadState::Seeding);
