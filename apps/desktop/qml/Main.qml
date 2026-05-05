@@ -12,7 +12,7 @@ ApplicationWindow {
     minimumHeight: 620
     visible: true
     title: "AwaKurageDownloader"
-    color: "#f8fafc"
+    color: "#f4f8f8"
 
     property string selectedDownloadId: ""
     property var selectedDownload: ({})
@@ -39,6 +39,11 @@ ApplicationWindow {
             unit += 1
         }
         return (unit === 0 ? Math.round(value).toString() : value.toFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2)) + " " + units[unit]
+    }
+
+    function positiveInt(text, fallback) {
+        const parsed = parseInt(text)
+        return !isNaN(parsed) && parsed >= 0 ? parsed : fallback
     }
 
     function selectDownload(id, fallback) {
@@ -207,39 +212,38 @@ ApplicationWindow {
         spacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 224
+            Layout.preferredWidth: 246
             Layout.fillHeight: true
-            color: "#ffffff"
-            border.color: "#e2e8f0"
+            color: "#fbfffd"
+            border.color: "#dbe7ec"
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
-                spacing: 14
+                anchors.leftMargin: 18
+                anchors.rightMargin: 18
+                anchors.topMargin: 22
+                anchors.bottomMargin: 18
+                spacing: 16
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-                    Rectangle {
-                        Layout.preferredWidth: 38
-                        Layout.preferredHeight: 38
-                        radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2e8f0"
-                        clip: true
+                    spacing: 12
+                    Item {
+                        Layout.preferredWidth: 46
+                        Layout.preferredHeight: 46
                         Image {
                             anchors.centerIn: parent
-                            width: 32
-                            height: 32
-                            source: "qrc:/images/logo.png"
+                            width: 44
+                            height: 44
+                            source: appLogoSource
                             fillMode: Image.PreserveAspectFit
                             smooth: true
                         }
                     }
                     ColumnLayout {
                         spacing: 1
-                        Text { text: "AwaKurage"; font.pixelSize: 16; font.weight: Font.DemiBold; color: "#0f172a" }
-                        Text { text: "BT 下载器"; font.pixelSize: 12; color: "#64748b" }
+                        Text { text: "AwaKurage"; font.pixelSize: 17; font.weight: Font.DemiBold; color: "#0f172a" }
+                        Text { text: "BT 下载器"; font.pixelSize: 12; color: "#6b7f99" }
                     }
                 }
 
@@ -253,17 +257,17 @@ ApplicationWindow {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 86
-                    radius: 8
+                    radius: 10
                     clip: true
-                    color: "#f8fafc"
-                    border.color: "#e2e8f0"
+                    color: "#f4f8f8"
+                    border.color: "#dbe7ec"
                     Column {
                         anchors.fill: parent
                         anchors.margins: 12
                         spacing: 6
-                        Text { text: "本地 API"; color: "#334155"; font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: "#64748b"; font.pixelSize: 12; elide: Text.ElideRight }
-                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: "#94a3b8"; font.pixelSize: 11; elide: Text.ElideRight }
+                        Text { text: "本地 API"; color: "#0f172a"; font.pixelSize: 13; font.weight: Font.DemiBold }
+                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: "#5d718a"; font.pixelSize: 12; elide: Text.ElideRight }
+                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: "#9aaabd"; font.pixelSize: 11; elide: Text.ElideRight }
                     }
                 }
             }
@@ -277,8 +281,8 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 76
-                color: "#ffffff"
-                border.color: "#e2e8f0"
+                color: "#fbfffd"
+                border.color: "#dbe7ec"
 
                 RowLayout {
                     anchors.fill: parent
@@ -289,16 +293,17 @@ ApplicationWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: pageTitles[currentPage]; color: "#0f172a"; font.pixelSize: 22; font.weight: Font.DemiBold }
-                        Text { text: pageSubtitles[currentPage]; color: "#64748b"; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: pageTitles[currentPage]; color: "#07111f"; font.pixelSize: 24; font.weight: Font.DemiBold }
+                        Text { text: pageSubtitles[currentPage]; color: "#6b7f99"; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
 
-                    Button {
+                    AcidButton {
                         visible: currentPage === 0
                         text: "添加磁力"
+                        tone: "primary"
                         onClicked: magnetDialog.open()
                     }
-                    Button {
+                    AcidButton {
                         visible: currentPage === 0
                         text: "选择种子"
                         onClicked: torrentDialog.open()
@@ -315,7 +320,27 @@ ApplicationWindow {
                 Rectangle {
                     SplitView.preferredWidth: 740
                     SplitView.minimumWidth: 560
-                    color: "#f8fafc"
+                    color: "#f4f8f8"
+
+                    Image {
+                        id: posterBackground
+                        source: appPosterSource
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.rightMargin: -42
+                        anchors.bottomMargin: -34
+                        width: Math.min(parent.width * 0.62, parent.height * 0.82)
+                        height: width
+                        fillMode: Image.PreserveAspectFit
+                        opacity: listView.count === 0 ? 0.88 : 0.24
+                        smooth: true
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "#f4f8f8"
+                        opacity: listView.count === 0 ? 0.18 : 0.62
+                    }
 
                     ListView {
                         id: listView
@@ -344,19 +369,21 @@ ApplicationWindow {
                         }
 
                         Rectangle {
-                            anchors.centerIn: parent
-                            width: 360
-                            height: 180
-                            radius: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: Math.max(34, Math.round(parent.width * 0.14))
+                            width: Math.min(430, parent.width - 68)
+                            height: 210
+                            radius: 14
                             visible: listView.count === 0
-                            color: "#ffffff"
-                            border.color: "#e2e8f0"
+                            color: "#fbfffd"
+                            border.color: "#d9e8ec"
                             ColumnLayout {
                                 anchors.centerIn: parent
-                                spacing: 12
-                                Text { text: "暂无下载任务"; color: "#0f172a"; font.pixelSize: 18; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
-                                Text { text: "拖入 .torrent 文件，或添加磁力链接"; color: "#64748b"; font.pixelSize: 13; Layout.alignment: Qt.AlignHCenter }
-                                Button { text: "添加磁力"; Layout.alignment: Qt.AlignHCenter; onClicked: magnetDialog.open() }
+                                spacing: 14
+                                Text { text: "暂无下载任务"; color: "#07111f"; font.pixelSize: 22; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
+                                Text { text: "拖入 .torrent 文件，或添加磁力链接"; color: "#6b7f99"; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter }
+                                AcidButton { text: "添加磁力"; tone: "primary"; Layout.alignment: Qt.AlignHCenter; onClicked: magnetDialog.open() }
                             }
                         }
                     }
@@ -366,8 +393,8 @@ ApplicationWindow {
                     id: detailPane
                     SplitView.preferredWidth: 360
                     SplitView.minimumWidth: 300
-                    color: "#ffffff"
-                    border.color: "#e2e8f0"
+                    color: "#fbfffd"
+                    border.color: "#dbe7ec"
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -436,22 +463,24 @@ ApplicationWindow {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Button {
+                            AcidButton {
                                 text: "暂停"
                                 Layout.fillWidth: true
                                 enabled: selectedDownloadId.length > 0 && selectedDownload.stateText !== "已暂停"
                                 onClicked: downloadManager.pause(selectedDownloadId)
                             }
-                            Button {
+                            AcidButton {
                                 text: "继续"
+                                tone: "primary"
                                 Layout.fillWidth: true
                                 enabled: selectedDownloadId.length > 0 && selectedDownload.stateText === "已暂停"
                                 onClicked: downloadManager.resume(selectedDownloadId)
                             }
                         }
-                        Button {
+                        AcidButton {
                             Layout.fillWidth: true
                             text: "移除任务"
+                            tone: "danger"
                             enabled: selectedDownloadId.length > 0
                             onClicked: downloadManager.remove(selectedDownloadId, false)
                         }
@@ -510,15 +539,16 @@ ApplicationWindow {
                             TextField { id: rssUrlInput; Layout.fillWidth: true; placeholderText: "https://example.com/feed.xml" }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Button {
+                                AcidButton {
                                     text: "添加订阅"
+                                    tone: "primary"
                                     onClicked: {
                                         rssService.addSubscription(rssTitleInput.text, rssUrlInput.text)
                                         rssTitleInput.clear()
                                         rssUrlInput.clear()
                                     }
                                 }
-                                Button { text: "刷新全部"; onClicked: rssService.refreshAll() }
+                                AcidButton { text: "刷新全部"; onClicked: rssService.refreshAll() }
                                 Switch {
                                     text: "自动匹配"
                                     checked: rssService.autoDownloadEnabled()
@@ -589,8 +619,8 @@ ApplicationWindow {
                             }
                             Item {}
                             RowLayout {
-                                Button { text: "启动"; enabled: !apiServer.listening; onClicked: apiServer.start(18777) }
-                                Button { text: "停止"; enabled: apiServer.listening; onClicked: apiServer.stop() }
+                                AcidButton { text: "启动"; tone: "primary"; enabled: !apiServer.listening; onClicked: apiServer.start(settingsService.apiPort()) }
+                                AcidButton { text: "停止"; tone: "danger"; enabled: apiServer.listening; onClicked: apiServer.stop() }
                             }
                         }
                     }
@@ -613,63 +643,184 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 color: "#f8fafc"
 
-                ColumnLayout {
+                ScrollView {
                     anchors.fill: parent
-                    anchors.margins: 24
-                    spacing: 16
+                    clip: true
 
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 250
-                        radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2e8f0"
+                    ColumnLayout {
+                        width: Math.max(parent.width - 48, 620)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 16
 
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 18
-                            spacing: 14
-                            Text { text: "下载设置"; color: "#0f172a"; font.pixelSize: 17; font.weight: Font.DemiBold }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                TextField {
-                                    id: settingsPathInput
+                        Item { Layout.preferredHeight: 8 }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: settingsContent.implicitHeight + 36
+                            radius: 8
+                            color: "#ffffff"
+                            border.color: "#e2e8f0"
+
+                            ColumnLayout {
+                                id: settingsContent
+                                anchors.fill: parent
+                                anchors.margins: 18
+                                spacing: 14
+                                Text { text: "下载设置"; color: "#0f172a"; font.pixelSize: 17; font.weight: Font.DemiBold }
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    text: downloadManager.defaultSavePath
-                                    placeholderText: "默认保存目录"
+                                    TextField {
+                                        id: settingsPathInput
+                                        Layout.fillWidth: true
+                                        text: downloadManager.defaultSavePath
+                                        placeholderText: "默认保存目录"
+                                    }
+                                    AcidButton { text: "选择"; onClicked: folderDialog.open() }
+                                    AcidButton {
+                                        text: "保存"
+                                        tone: "primary"
+                                        onClicked: {
+                                            downloadManager.defaultSavePath = settingsPathInput.text
+                                            settingsService.setDownloadDirectory(settingsPathInput.text)
+                                            toastText = "设置已保存"
+                                            toastPopup.open()
+                                        }
+                                    }
                                 }
-                                Button { text: "选择"; onClicked: folderDialog.open() }
-                                Button {
-                                    text: "保存"
-                                    onClicked: {
-                                        downloadManager.defaultSavePath = settingsPathInput.text
-                                        settingsService.setDownloadDirectory(settingsPathInput.text)
-                                        toastText = "设置已保存"
-                                        toastPopup.open()
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextField {
+                                        id: dlLimitInput
+                                        Layout.fillWidth: true
+                                        text: downloadManager.downloadLimitKiB.toString()
+                                        placeholderText: "下载限速 KiB/s，0 表示不限"
+                                        inputMethodHints: Qt.ImhDigitsOnly
+                                    }
+                                    TextField {
+                                        id: ulLimitInput
+                                        Layout.fillWidth: true
+                                        text: downloadManager.uploadLimitKiB.toString()
+                                        placeholderText: "上传限速 KiB/s，0 表示不限"
+                                        inputMethodHints: Qt.ImhDigitsOnly
+                                    }
+                                    AcidButton {
+                                        text: "应用限速"
+                                        tone: "primary"
+                                        onClicked: {
+                                            const dlLimit = positiveInt(dlLimitInput.text, 0)
+                                            const ulLimit = positiveInt(ulLimitInput.text, 0)
+                                            downloadManager.setSpeedLimits(dlLimit, ulLimit)
+                                            settingsService.setDownloadLimitKiB(dlLimit)
+                                            settingsService.setUploadLimitKiB(ulLimit)
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: "#e2e8f0"
+                                }
+                                Text { text: "块选择与上传博弈"; color: "#0f172a"; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                GridLayout {
+                                    Layout.fillWidth: true
+                                    columns: 2
+                                    rowSpacing: 10
+                                    columnSpacing: 14
+                                    Text { text: "块选择策略"; color: "#64748b"; font.pixelSize: 13 }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "稀有块优先"
+                                        color: "#0f172a"
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text { text: "上传博弈策略"; color: "#64748b"; font.pixelSize: 13 }
+                                    ComboBox {
+                                        id: chokingAlgorithmBox
+                                        Layout.fillWidth: true
+                                        model: ["互惠固定槽位", "互惠速率自适应"]
+                                        currentIndex: downloadManager.chokingAlgorithm
+                                    }
+                                    Text { text: "做种时策略"; color: "#64748b"; font.pixelSize: 13 }
+                                    ComboBox {
+                                        id: seedChokingAlgorithmBox
+                                        Layout.fillWidth: true
+                                        model: ["轮询", "最快上传优先", "反吸血博弈"]
+                                        currentIndex: downloadManager.seedChokingAlgorithm
+                                    }
+                                    Text { text: "上传槽位"; color: "#64748b"; font.pixelSize: 13 }
+                                    SpinBox {
+                                        id: uploadSlotsSpin
+                                        Layout.fillWidth: true
+                                        from: 1
+                                        to: 200
+                                        value: downloadManager.uploadSlots
+                                    }
+                                    Text { text: "乐观解阻塞槽位"; color: "#64748b"; font.pixelSize: 13 }
+                                    SpinBox {
+                                        id: optimisticSlotsSpin
+                                        Layout.fillWidth: true
+                                        from: 0
+                                        to: 10
+                                        value: downloadManager.optimisticSlots
+                                    }
+                                    Item {}
+                                    AcidButton {
+                                        text: "应用策略"
+                                        tone: "primary"
+                                        onClicked: {
+                                            downloadManager.setChokingStrategy(chokingAlgorithmBox.currentIndex, seedChokingAlgorithmBox.currentIndex, uploadSlotsSpin.value, optimisticSlotsSpin.value)
+                                            settingsService.setChokingAlgorithm(chokingAlgorithmBox.currentIndex)
+                                            settingsService.setSeedChokingAlgorithm(seedChokingAlgorithmBox.currentIndex)
+                                            settingsService.setUploadSlots(uploadSlotsSpin.value)
+                                            settingsService.setOptimisticSlots(optimisticSlotsSpin.value)
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: "#e2e8f0"
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextField {
+                                        id: apiPortInput
+                                        Layout.fillWidth: true
+                                        text: settingsService.apiPort().toString()
+                                        placeholderText: "API 端口"
+                                        inputMethodHints: Qt.ImhDigitsOnly
+                                    }
+                                    Switch {
+                                        id: apiAutoStartSwitch
+                                        text: "启动本地 API"
+                                        checked: settingsService.startApiAutomatically()
+                                    }
+                                    AcidButton {
+                                        text: "保存 API"
+                                        tone: "primary"
+                                        onClicked: {
+                                            settingsService.setApiPort(positiveInt(apiPortInput.text, 18777))
+                                            settingsService.setStartApiAutomatically(apiAutoStartSwitch.checked)
+                                            toastText = "API 设置已保存，重启后生效"
+                                            toastPopup.open()
+                                        }
+                                    }
+                                }
+                                Switch {
+                                    text: "启动 RSS 自动匹配"
+                                    checked: settingsService.startRssAutomatically()
+                                    onToggled: {
+                                        settingsService.setStartRssAutomatically(checked)
+                                        rssService.setAutoDownloadEnabled(checked)
                                     }
                                 }
                             }
-                            RowLayout {
-                                Layout.fillWidth: true
-                                TextField { id: dlLimitInput; Layout.fillWidth: true; placeholderText: "下载限速 KiB/s，0 表示不限" }
-                                TextField { id: ulLimitInput; Layout.fillWidth: true; placeholderText: "上传限速 KiB/s，0 表示不限" }
-                                Button {
-                                    text: "应用限速"
-                                    onClicked: downloadManager.setSpeedLimits(parseInt(dlLimitInput.text || "0"), parseInt(ulLimitInput.text || "0"))
-                                }
-                            }
-                            Switch {
-                                text: "启动 RSS 自动匹配"
-                                checked: settingsService.startRssAutomatically()
-                                onToggled: {
-                                    settingsService.setStartRssAutomatically(checked)
-                                    rssService.setAutoDownloadEnabled(checked)
-                                }
-                            }
                         }
-                    }
 
-                    Item { Layout.fillHeight: true }
+                        Item { Layout.fillHeight: true }
+                        Item { Layout.preferredHeight: 8 }
+                    }
                 }
             }
         }

@@ -41,6 +41,7 @@ TEST_CASE("DownloadManager uses default save path when options omit one")
         void remove(const QString&, bool) override {}
         void setFilePriorities(const QString&, const QVector<FilePriority>&) override {}
         void setSpeedLimits(int, int) override {}
+        void setChokingStrategy(int, int, int, int) override {}
     };
 
     DownloadManager manager;

@@ -5,7 +5,7 @@
     {
       "name": "qtbase",
       "default-features": false,
-      "features": ["gui", "network", "sql", "sql-sqlite", "widgets"]
+      "features": ["gui", "network", "png", "sql", "sql-sqlite", "widgets"]
     },
     "qtdeclarative",
     "qtwebsockets",

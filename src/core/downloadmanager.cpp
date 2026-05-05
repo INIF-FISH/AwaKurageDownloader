@@ -3,6 +3,8 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <algorithm>
+
 namespace awa::core {
 
 DownloadManager::DownloadManager(QObject* parent)
@@ -22,6 +24,36 @@ DownloadListModel* DownloadManager::downloads()
 QString DownloadManager::defaultSavePath() const
 {
     return m_defaultSavePath;
+}
+
+int DownloadManager::downloadLimitKiB() const
+{
+    return m_downloadLimitKiB;
+}
+
+int DownloadManager::uploadLimitKiB() const
+{
+    return m_uploadLimitKiB;
+}
+
+int DownloadManager::chokingAlgorithm() const
+{
+    return m_chokingAlgorithm;
+}
+
+int DownloadManager::seedChokingAlgorithm() const
+{
+    return m_seedChokingAlgorithm;
+}
+
+int DownloadManager::uploadSlots() const
+{
+    return m_uploadSlots;
+}
+
+int DownloadManager::optimisticSlots() const
+{
+    return m_optimisticSlots;
 }
 
 void DownloadManager::setDefaultSavePath(const QString& path)
@@ -53,6 +85,8 @@ void DownloadManager::setBackend(TorrentBackend* backend)
     });
     connect(m_backend, &TorrentBackend::itemRemoved, &m_downloads, &DownloadListModel::removeById);
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);
+    m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
+    m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
 }
 
 void DownloadManager::addTorrentFile(const QString& path, const QVariantMap& options)
@@ -96,13 +130,28 @@ void DownloadManager::remove(const QString& id, bool removeFiles)
 
 void DownloadManager::setSpeedLimits(int downloadKiB, int uploadKiB)
 {
-    if (!m_backend) {
-        emit toastRequested(QStringLiteral("下载内核未就绪"));
-        return;
-    }
+    m_downloadLimitKiB = std::max(0, downloadKiB);
+    m_uploadLimitKiB = std::max(0, uploadKiB);
+    emit speedLimitsChanged();
 
-    m_backend->setSpeedLimits(downloadKiB, uploadKiB);
+    if (m_backend) {
+        m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
+    }
     emit toastRequested(QStringLiteral("限速已应用"));
+}
+
+void DownloadManager::setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots)
+{
+    m_chokingAlgorithm = std::clamp(chokingAlgorithm, 0, 1);
+    m_seedChokingAlgorithm = std::clamp(seedChokingAlgorithm, 0, 2);
+    m_uploadSlots = std::clamp(uploadSlots, 1, 200);
+    m_optimisticSlots = std::clamp(optimisticSlots, 0, 10);
+    emit chokingStrategyChanged();
+
+    if (m_backend) {
+        m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
+    }
+    emit toastRequested(QStringLiteral("稀有块优先与上传博弈策略已应用"));
 }
 
 DownloadOptions DownloadManager::parseOptions(const QVariantMap& options) const

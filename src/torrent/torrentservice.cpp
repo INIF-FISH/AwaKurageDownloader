@@ -69,7 +69,7 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_bool(lt::settings_pack::enable_outgoing_utp, true);
     settings.set_bool(lt::settings_pack::enable_incoming_utp, true);
     settings.set_bool(lt::settings_pack::auto_sequential, false);
-    settings.set_bool(lt::settings_pack::piece_extent_affinity, true);
+    settings.set_bool(lt::settings_pack::piece_extent_affinity, false);
     settings.set_bool(lt::settings_pack::prioritize_partial_pieces, false);
     settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.0");
     settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:6881-6891,[::]:6881-6891");
@@ -78,10 +78,15 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_int(lt::settings_pack::connections_limit, 500);
     settings.set_int(lt::settings_pack::active_downloads, 20);
     settings.set_int(lt::settings_pack::active_limit, 200);
+    settings.set_int(lt::settings_pack::choking_algorithm, lt::settings_pack::fixed_slots_choker);
+    settings.set_int(lt::settings_pack::seed_choking_algorithm, lt::settings_pack::anti_leech);
+    settings.set_int(lt::settings_pack::unchoke_slots_limit, 8);
+    settings.set_int(lt::settings_pack::num_optimistic_unchoke_slots, 1);
     settings.set_int(lt::settings_pack::connection_speed, 50);
     settings.set_int(lt::settings_pack::request_queue_time, 6);
     settings.set_int(lt::settings_pack::max_out_request_queue, 768);
-    settings.set_int(lt::settings_pack::whole_pieces_threshold, 20);
+    settings.set_int(lt::settings_pack::whole_pieces_threshold, 0);
+    settings.set_int(lt::settings_pack::initial_picker_threshold, 0);
     settings.set_int(lt::settings_pack::aio_threads, 8);
     settings.set_int(lt::settings_pack::checking_mem_usage, 128);
     settings.set_int(lt::settings_pack::alert_mask,
@@ -281,6 +286,25 @@ void TorrentService::setSpeedLimits(int downloadKiB, int uploadKiB)
     m_session->apply_settings(settings);
 }
 
+void TorrentService::setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots)
+{
+    lt::settings_pack settings;
+    const int choker = chokingAlgorithm == 0
+        ? lt::settings_pack::fixed_slots_choker
+        : lt::settings_pack::rate_based_choker;
+    const int seedChoker = seedChokingAlgorithm == 0
+        ? lt::settings_pack::round_robin
+        : seedChokingAlgorithm == 1
+            ? lt::settings_pack::fastest_upload
+            : lt::settings_pack::anti_leech;
+
+    settings.set_int(lt::settings_pack::choking_algorithm, choker);
+    settings.set_int(lt::settings_pack::seed_choking_algorithm, seedChoker);
+    settings.set_int(lt::settings_pack::unchoke_slots_limit, std::clamp(uploadSlots, 1, 200));
+    settings.set_int(lt::settings_pack::num_optimistic_unchoke_slots, std::clamp(optimisticSlots, 0, 10));
+    m_session->apply_settings(settings);
+}
+
 void TorrentService::pollAlerts()
 {
     std::vector<lt::alert*> alerts;
@@ -415,6 +439,7 @@ void TorrentService::rememberHandle(const lt::torrent_handle& handle, awa::core:
         item.name = QStringLiteral("Magnet %1").arg(id.left(12));
     }
     m_items.insert(id, item);
+    item.statusText = QStringLiteral("采用稀有块优先策略获取元数据");
     emit itemUpdated(item);
 }
 

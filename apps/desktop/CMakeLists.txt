@@ -10,6 +10,8 @@ qt_add_qml_module(AwaKurageDownloader
         qml/Main.qml
         qml/DownloadRow.qml
         qml/SidebarButton.qml
+        qml/AcidButton.qml
+        qml/AcidToolButton.qml
 )
 
 target_link_libraries(AwaKurageDownloader
@@ -36,6 +38,10 @@ install(TARGETS AwaKurageDownloader
 )
 
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/LOGO.png"
+    DESTINATION bin/resources
+)
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/Poster.png"
     DESTINATION bin/resources
 )
 

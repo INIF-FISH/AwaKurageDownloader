@@ -26,6 +26,7 @@ public:
     void remove(const QString& id, bool removeFiles) override;
     void setFilePriorities(const QString& id, const QVector<awa::core::FilePriority>& priorities) override;
     void setSpeedLimits(int downloadKiB, int uploadKiB) override;
+    void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) override;
 
 private slots:
     void pollAlerts();

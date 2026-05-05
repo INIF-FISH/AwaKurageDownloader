@@ -23,6 +23,7 @@ public:
     virtual void remove(const QString& id, bool removeFiles) = 0;
     virtual void setFilePriorities(const QString& id, const QVector<FilePriority>& priorities) = 0;
     virtual void setSpeedLimits(int downloadKiB, int uploadKiB) = 0;
+    virtual void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) = 0;
 
 signals:
     void itemUpdated(const awa::core::DownloadItem& item);
@@ -34,6 +35,12 @@ class DownloadManager final : public QObject {
     Q_OBJECT
     Q_PROPERTY(awa::core::DownloadListModel* downloads READ downloads CONSTANT)
     Q_PROPERTY(QString defaultSavePath READ defaultSavePath WRITE setDefaultSavePath NOTIFY defaultSavePathChanged)
+    Q_PROPERTY(int downloadLimitKiB READ downloadLimitKiB NOTIFY speedLimitsChanged)
+    Q_PROPERTY(int uploadLimitKiB READ uploadLimitKiB NOTIFY speedLimitsChanged)
+    Q_PROPERTY(int chokingAlgorithm READ chokingAlgorithm NOTIFY chokingStrategyChanged)
+    Q_PROPERTY(int seedChokingAlgorithm READ seedChokingAlgorithm NOTIFY chokingStrategyChanged)
+    Q_PROPERTY(int uploadSlots READ uploadSlots NOTIFY chokingStrategyChanged)
+    Q_PROPERTY(int optimisticSlots READ optimisticSlots NOTIFY chokingStrategyChanged)
 
 public:
     explicit DownloadManager(QObject* parent = nullptr);
@@ -41,6 +48,12 @@ public:
     DownloadListModel* downloads();
     QString defaultSavePath() const;
     void setDefaultSavePath(const QString& path);
+    int downloadLimitKiB() const;
+    int uploadLimitKiB() const;
+    int chokingAlgorithm() const;
+    int seedChokingAlgorithm() const;
+    int uploadSlots() const;
+    int optimisticSlots() const;
     void setBackend(TorrentBackend* backend);
 
     Q_INVOKABLE void addTorrentFile(const QString& path, const QVariantMap& options = {});
@@ -49,9 +62,12 @@ public:
     Q_INVOKABLE void resume(const QString& id);
     Q_INVOKABLE void remove(const QString& id, bool removeFiles);
     Q_INVOKABLE void setSpeedLimits(int downloadKiB, int uploadKiB);
+    Q_INVOKABLE void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots);
 
 signals:
     void defaultSavePathChanged();
+    void speedLimitsChanged();
+    void chokingStrategyChanged();
     void toastRequested(const QString& message);
 
 private:
@@ -60,6 +76,12 @@ private:
     DownloadListModel m_downloads;
     QPointer<TorrentBackend> m_backend;
     QString m_defaultSavePath;
+    int m_downloadLimitKiB = 0;
+    int m_uploadLimitKiB = 0;
+    int m_chokingAlgorithm = 0;
+    int m_seedChokingAlgorithm = 2;
+    int m_uploadSlots = 8;
+    int m_optimisticSlots = 1;
 };
 
 } // namespace awa::core

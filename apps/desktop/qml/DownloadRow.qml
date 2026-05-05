@@ -46,11 +46,11 @@ Rectangle {
     signal resumeTask(string id)
     signal removeTask(string id)
 
-    height: 106
-    radius: 8
+    height: 112
+    radius: 14
     clip: true
-    color: selected ? "#e0f2fe" : hoverHandler.hovered ? "#f8fafc" : "#ffffff"
-    border.color: selected ? "#38bdf8" : "#e2e8f0"
+    color: selected ? "#f3ffd7" : hoverHandler.hovered ? "#fbfffd" : "#ffffff"
+    border.color: selected ? "#bfff2e" : hoverHandler.hovered ? "#cdeee7" : "#dbe7ec"
 
     Behavior on color { ColorAnimation { duration: 140 } }
     HoverHandler { id: hoverHandler }
@@ -82,14 +82,14 @@ Rectangle {
         Rectangle {
             Layout.preferredWidth: 42
             Layout.preferredHeight: 42
-            radius: 8
-            color: "#f0fdfa"
+            radius: 12
+            color: "#e9fff8"
             Text {
                 anchors.centerIn: parent
                 text: "BT"
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                color: "#0f766e"
+                color: "#00a98a"
             }
         }
 
@@ -100,7 +100,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: rowRoot.displayName
-                color: "#0f172a"
+                color: "#07111f"
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
@@ -125,7 +125,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: rowRoot.formatBytes(rowRoot.downloadedBytes) + " / " + rowRoot.formatBytes(rowRoot.totalBytes) + " · " + rowRoot.displayStatus
-                color: "#64748b"
+                color: "#6b7f99"
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
@@ -146,7 +146,7 @@ Rectangle {
                                 : 0
                             height: rowPieceBar.height
                             radius: 1
-                            color: rowRoot.pieceMap.charAt(index) === "1" ? "#0f766e" : "#e2e8f0"
+                            color: rowRoot.pieceMap.charAt(index) === "1" ? "#00d1a7" : "#e3edf0"
                         }
                     }
                 }
@@ -160,7 +160,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: "↓ " + rowRoot.downloadKiB + " KiB/s"
-                color: "#0f766e"
+                color: "#00a98a"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
@@ -186,7 +186,7 @@ Rectangle {
         RowLayout {
             Layout.preferredWidth: 110
             spacing: 3
-            ToolButton {
+            AcidToolButton {
                 Layout.preferredWidth: 34
                 Layout.preferredHeight: 34
                 text: "⏸"
@@ -195,16 +195,17 @@ Rectangle {
                 ToolTip.text: "暂停"
                 onClicked: rowRoot.pauseTask(rowRoot.downloadId)
             }
-            ToolButton {
+            AcidToolButton {
                 Layout.preferredWidth: 34
                 Layout.preferredHeight: 34
                 text: "▶"
+                tone: "primary"
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.paused
                 ToolTip.visible: hovered
                 ToolTip.text: "继续"
                 onClicked: rowRoot.resumeTask(rowRoot.downloadId)
             }
-            ToolButton {
+            AcidToolButton {
                 Layout.preferredWidth: 34
                 Layout.preferredHeight: 34
                 text: "⋯"

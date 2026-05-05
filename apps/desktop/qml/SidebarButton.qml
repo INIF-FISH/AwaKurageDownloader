@@ -6,9 +6,9 @@ Button {
     property string iconText: ""
 
     flat: true
-    height: 44
-    leftPadding: 10
-    rightPadding: 10
+    height: 46
+    leftPadding: 12
+    rightPadding: 12
     font.pixelSize: 14
 
     contentItem: Item {
@@ -19,7 +19,7 @@ Button {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             font.pixelSize: 16
-            color: control.checked ? "#0f766e" : "#64748b"
+            color: control.checked ? "#07111f" : "#6b7f99"
             width: 26
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -31,7 +31,7 @@ Button {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: control.text
-            color: control.checked ? "#0f172a" : "#475569"
+            color: control.checked ? "#07111f" : "#455a73"
             font.pixelSize: 14
             font.weight: control.checked ? Font.DemiBold : Font.Normal
             verticalAlignment: Text.AlignVCenter
@@ -41,8 +41,21 @@ Button {
     }
 
     background: Rectangle {
-        radius: 8
-        color: control.checked ? "#ccfbf1" : control.hovered ? "#f1f5f9" : "transparent"
+        radius: 10
+        color: control.checked ? "#bfff2e" : control.hovered ? "#e9fff8" : "transparent"
+        border.color: control.checked ? "#97e217" : control.hovered ? "#b9f5e7" : "transparent"
+        border.width: control.checked || control.hovered ? 1 : 0
+        Rectangle {
+            visible: control.checked
+            width: 3
+            radius: 1
+            color: "#ff6aa7"
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
+        }
         Behavior on color { ColorAnimation { duration: 140 } }
     }
 }
