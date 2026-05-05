@@ -91,7 +91,7 @@ Rectangle {
         }
     }
 
-    height: 132
+    height: 118
     radius: AwaTheme.radiusMd
     clip: true
     color: selected ? "#f2f9ff" : hoverHandler.hovered ? "#fbfdff" : AwaTheme.surface
@@ -130,29 +130,36 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.minimumWidth: 180
+            Layout.minimumWidth: 240
+            Layout.preferredWidth: 640
             spacing: 8
             Text {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: parent.width
                 text: rowRoot.displayName
                 color: AwaTheme.ink
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
+                maximumLineCount: 1
+                wrapMode: Text.NoWrap
                 elide: Text.ElideRight
             }
             RowLayout {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 spacing: 10
                 ProgressBar {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 96
                     from: 0
                     to: 1
                     value: rowRoot.progress
                     background: Rectangle {
                         implicitHeight: 8
                         radius: 4
-                        color: AwaTheme.primaryPale
-                        border.color: "#d9eafd"
+                        color: "#fff3e6"
+                        border.color: "#ffd7a8"
                     }
                     contentItem: Item {
                         implicitHeight: 8
@@ -160,7 +167,7 @@ Rectangle {
                             width: parent.width * rowRoot.progress
                             height: parent.height
                             radius: 4
-                            color: AwaTheme.primary
+                            color: "#f97316"
                         }
                     }
                 }
@@ -174,32 +181,14 @@ Rectangle {
             }
             Text {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: parent.width
                 text: rowRoot.formatBytes(rowRoot.downloadedBytes) + " / " + rowRoot.formatBytes(rowRoot.totalBytes) + " - " + rowRoot.displayStatus
                 color: AwaTheme.muted
                 font.pixelSize: 12
+                maximumLineCount: 1
+                wrapMode: Text.NoWrap
                 elide: Text.ElideRight
-            }
-            Item {
-                id: rowPieceBar
-                Layout.fillWidth: true
-                Layout.preferredHeight: 5
-                clip: true
-                readonly property int sampleCount: Math.min(rowRoot.pieceMap.length, 64)
-                Row {
-                    anchors.fill: parent
-                    spacing: 1
-                    Repeater {
-                        model: rowPieceBar.sampleCount
-                        Rectangle {
-                            width: rowPieceBar.sampleCount > 0
-                                ? Math.max(1, (rowPieceBar.width - (rowPieceBar.sampleCount - 1)) / rowPieceBar.sampleCount)
-                                : 0
-                            height: rowPieceBar.height
-                            radius: 2
-                            color: rowRoot.pieceMap.charAt(index) === "1" ? "#a9eec1" : "#dceeff"
-                        }
-                    }
-                }
             }
         }
 

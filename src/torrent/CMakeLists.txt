@@ -7,6 +7,6 @@ qt_add_library(awa_torrent STATIC
 
 target_include_directories(awa_torrent PUBLIC include)
 target_link_libraries(awa_torrent
-    PUBLIC awa_core Qt6::Core LibtorrentRasterbar::torrent-rasterbar
+    PUBLIC awa_core Qt6::Core Qt6::Network LibtorrentRasterbar::torrent-rasterbar
     PRIVATE spdlog::spdlog
 )

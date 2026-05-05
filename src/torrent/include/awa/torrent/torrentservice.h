@@ -3,6 +3,7 @@
 #include "awa/core/downloadmanager.h"
 
 #include <QHash>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
@@ -35,8 +36,17 @@ private slots:
     void pollAlerts();
     void refreshStatuses();
     void requestResumeDataForAll();
+    void restartDownloadsAfterNetworkChange();
 
 private:
+    struct TrackerHealth {
+        int successes = 0;
+        int failures = 0;
+        int peers = 0;
+        QDateTime lastSuccess;
+        QDateTime lastFailure;
+    };
+
     QString handleId(const libtorrent::torrent_handle& handle) const;
     awa::core::DownloadItem itemFromHandle(const libtorrent::torrent_handle& handle) const;
     void rememberHandle(const libtorrent::torrent_handle& handle, awa::core::DownloadState initialState);
@@ -48,13 +58,22 @@ private:
     void writeResumeData(const QString& id, const libtorrent::add_torrent_params& params) const;
     void applyTrackers(libtorrent::add_torrent_params& params) const;
     void applyTrackersToHandle(const libtorrent::torrent_handle& handle) const;
+    bool shouldIgnoreId(const QString& id) const;
+    int trackerHealthScore(const QString& tracker) const;
+    void recordTrackerResult(const QString& tracker, bool success, int peers = 0);
+    void reprioritizeTrackers();
 
     std::unique_ptr<libtorrent::session> m_session;
     QTimer m_alertTimer;
     QTimer m_statusTimer;
     QTimer m_resumeSaveTimer;
+    QTimer m_networkRestartTimer;
     QHash<QString, libtorrent::torrent_handle> m_handles;
     QHash<QString, awa::core::DownloadItem> m_items;
+    QHash<QString, QDateTime> m_lastMetadataRetry;
+    QHash<QString, int> m_metadataRetryCounts;
+    QHash<QString, TrackerHealth> m_trackerHealth;
+    QSet<QString> m_removedIds;
     QStringList m_defaultTrackers;
     bool m_persistedTasksLoaded = false;
 };

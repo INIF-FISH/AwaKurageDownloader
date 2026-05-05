@@ -19,6 +19,7 @@ ApplicationWindow {
     property string toastText: ""
     property int currentPage: 0
     property int downloadsRevision: 0
+    property int pieceMapRevision: 0
     readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
     readonly property string selectedStateText: selectedDownload.stateText || ""
     readonly property bool selectedIsPaused: selectedStateText === "已暂停" || selectedStateText === "Paused"
@@ -87,6 +88,18 @@ ApplicationWindow {
         toastPopup.open()
     }
 
+    function roleListContains(roles, role) {
+        if (!roles || roles.length === 0) {
+            return true
+        }
+        for (let i = 0; i < roles.length; ++i) {
+            if (roles[i] === role) {
+                return true
+            }
+        }
+        return false
+    }
+
     function addMagnetFromDialog() {
         downloadManager.addMagnet(magnetInput.text, {"savePath": savePathInput.text})
         magnetInput.clear()
@@ -129,6 +142,7 @@ ApplicationWindow {
         target: downloadManager.downloads
         function onRowsInserted(parent, first, last) {
             downloadsRevision += 1
+            pieceMapRevision += 1
             if (selectedDownloadId.length === 0 && first >= 0) {
                 selectDownload(downloadManager.downloads.get(first).downloadId)
             } else {
@@ -137,6 +151,7 @@ ApplicationWindow {
         }
         function onRowsRemoved(parent, first, last) {
             downloadsRevision += 1
+            pieceMapRevision += 1
             if (selectedDownloadId.length === 0) {
                 return
             }
@@ -153,10 +168,14 @@ ApplicationWindow {
         }
         function onDataChanged(topLeft, bottomRight, roles) {
             downloadsRevision += 1
+            if (roleListContains(roles, downloadManager.downloads.pieceMapRole())) {
+                pieceMapRevision += 1
+            }
             refreshSelectedDownload()
         }
         function onModelReset() {
             downloadsRevision += 1
+            pieceMapRevision += 1
             refreshSelectedDownload()
         }
     }
@@ -595,8 +614,8 @@ ApplicationWindow {
                             background: Rectangle {
                                 implicitHeight: 9
                                 radius: 5
-                                color: AwaTheme.primaryPale
-                                border.color: AwaTheme.border
+                                color: "#fff3e6"
+                                border.color: "#ffd7a8"
                             }
                             contentItem: Item {
                                 implicitHeight: 9
@@ -604,7 +623,7 @@ ApplicationWindow {
                                     width: parent.width * (selectedDownload.progress || 0)
                                     height: parent.height
                                     radius: 5
-                                    color: AwaTheme.primary
+                                    color: "#f97316"
                                 }
                             }
                         }
@@ -633,10 +652,16 @@ ApplicationWindow {
                         Panel {
                             id: detailPieceBar
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 92
+                            Layout.preferredHeight: 220
                             visible: hasSelectedDownload
                             clip: true
-                            readonly property int sampleCount: Math.min((selectedDownload.pieceMap || "").length, 96)
+                            readonly property string fullPieceMap: {
+                                pieceMapRevision
+                                return selectedDownloadId.length > 0 ? downloadManager.downloads.pieceMapById(selectedDownloadId) : ""
+                            }
+                            readonly property int cellSize: 7
+                            readonly property int cellGap: 2
+                            readonly property int columnCount: Math.max(1, Math.floor((pieceGridViewport.availableWidth + cellGap) / (cellSize + cellGap)))
                             ColumnLayout {
                                 anchors.fill: parent
                                 anchors.margins: 12
@@ -656,33 +681,58 @@ ApplicationWindow {
                                         font.pixelSize: 12
                                     }
                                 }
-                                Rectangle {
+                                ScrollView {
+                                    id: pieceGridViewport
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 20
-                                    radius: 6
-                                    color: AwaTheme.primaryPale
-                                    border.color: AwaTheme.border
+                                    Layout.fillHeight: true
                                     clip: true
-                                    Row {
-                                        anchors.fill: parent
-                                        anchors.margins: 3
-                                        spacing: 2
-                                        visible: detailPieceBar.sampleCount > 0
-                                        Repeater {
-                                            model: detailPieceBar.sampleCount
-                                            Rectangle {
-                                                width: detailPieceBar.sampleCount > 0
-                                                    ? Math.max(1, (parent.width - ((detailPieceBar.sampleCount - 1) * 2)) / detailPieceBar.sampleCount)
-                                                    : 0
-                                                height: parent.height
-                                                radius: 3
-                                                color: (selectedDownload.pieceMap || "").charAt(index) === "1" ? "#a9eec1" : "#dceeff"
+                                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                                    background: Rectangle {
+                                        radius: 6
+                                        color: AwaTheme.primaryPale
+                                        border.color: AwaTheme.border
+                                    }
+                                    Item {
+                                        id: pieceGridContent
+                                        width: pieceGridViewport.availableWidth
+                                        height: Math.max(pieceGridViewport.availableHeight,
+                                            detailPieceBar.fullPieceMap.length > 0
+                                                ? Math.ceil(detailPieceBar.fullPieceMap.length / detailPieceBar.columnCount)
+                                                    * (detailPieceBar.cellSize + detailPieceBar.cellGap) + detailPieceBar.cellGap
+                                                : pieceGridViewport.availableHeight)
+                                        visible: detailPieceBar.fullPieceMap.length > 0
+
+                                        Canvas {
+                                            id: pieceCanvas
+                                            anchors.fill: parent
+                                            onPaint: {
+                                                const ctx = getContext("2d")
+                                                ctx.clearRect(0, 0, width, height)
+                                                const map = detailPieceBar.fullPieceMap
+                                                const cell = detailPieceBar.cellSize
+                                                const gap = detailPieceBar.cellGap
+                                                const columns = detailPieceBar.columnCount
+                                                for (let i = 0; i < map.length; ++i) {
+                                                    const x = (i % columns) * (cell + gap)
+                                                    const y = Math.floor(i / columns) * (cell + gap)
+                                                    ctx.fillStyle = map.charAt(i) === "1" ? "#a9eec1" : "#dceeff"
+                                                    ctx.fillRect(x, y, cell, cell)
+                                                }
                                             }
+                                            onWidthChanged: requestPaint()
+                                            onHeightChanged: requestPaint()
+                                        }
+
+                                        Connections {
+                                            target: detailPieceBar
+                                            function onFullPieceMapChanged() { pieceCanvas.requestPaint() }
+                                            function onColumnCountChanged() { pieceCanvas.requestPaint() }
                                         }
                                     }
                                     Text {
                                         anchors.centerIn: parent
-                                        visible: detailPieceBar.sampleCount === 0
+                                        visible: detailPieceBar.fullPieceMap.length === 0
                                         text: "等待分块数据"
                                         color: AwaTheme.muted
                                         font.pixelSize: 11
@@ -877,7 +927,6 @@ ApplicationWindow {
                     id: settingsScrollView
                     anchors.fill: parent
                     clip: true
-                    interactive: !trackerUrlsInput.activeFocus
 
                     ColumnLayout {
                         width: Math.max(parent.width - 48, 620)

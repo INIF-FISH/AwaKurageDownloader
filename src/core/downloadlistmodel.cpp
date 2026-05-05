@@ -3,6 +3,20 @@
 #include <QVariantMap>
 
 namespace awa::core {
+namespace {
+QVariantMap itemToMap(const DownloadListModel& model, int row, bool includePieceMap)
+{
+    QVariantMap result;
+    const auto roles = model.roleNames();
+    for (auto it = roles.cbegin(); it != roles.cend(); ++it) {
+        if (!includePieceMap && it.key() == DownloadListModel::PieceMapRole) {
+            continue;
+        }
+        result.insert(QString::fromUtf8(it.value()), model.data(model.index(row), it.key()));
+    }
+    return result;
+}
+} // namespace
 
 QString stateToString(DownloadState state)
 {
@@ -84,21 +98,34 @@ QHash<int, QByteArray> DownloadListModel::roleNames() const
 
 QVariantMap DownloadListModel::get(int row) const
 {
-    QVariantMap result;
     if (row < 0 || row >= m_items.size()) {
-        return result;
+        return {};
     }
 
-    const auto roles = roleNames();
-    for (auto it = roles.cbegin(); it != roles.cend(); ++it) {
-        result.insert(QString::fromUtf8(it.value()), data(index(row), it.key()));
-    }
-    return result;
+    return itemToMap(*this, row, false);
 }
 
 QVariantMap DownloadListModel::getById(const QString& id) const
 {
-    return get(indexOfId(id));
+    const int row = indexOfId(id);
+    if (row < 0) {
+        return {};
+    }
+    return itemToMap(*this, row, false);
+}
+
+QString DownloadListModel::pieceMapById(const QString& id) const
+{
+    const int row = indexOfId(id);
+    if (row < 0) {
+        return {};
+    }
+    return m_items.at(row).pieceMap;
+}
+
+int DownloadListModel::pieceMapRole() const
+{
+    return PieceMapRole;
 }
 
 int DownloadListModel::indexOfId(const QString& id) const
@@ -126,27 +153,33 @@ void DownloadListModel::upsert(const DownloadItem& item)
         return;
     }
 
+    const auto previous = m_items.at(row);
+    QVector<int> changedRoles;
+    if (previous.id != item.id) changedRoles.append(IdRole);
+    if (previous.name != item.name) changedRoles.append(NameRole);
+    if (previous.source != item.source) changedRoles.append(SourceRole);
+    if (previous.savePath != item.savePath) changedRoles.append(SavePathRole);
+    if (previous.state != item.state) {
+        changedRoles.append(StateRole);
+        changedRoles.append(StateTextRole);
+    }
+    if (previous.progress != item.progress) changedRoles.append(ProgressRole);
+    if (previous.totalBytes != item.totalBytes) changedRoles.append(TotalBytesRole);
+    if (previous.downloadedBytes != item.downloadedBytes) changedRoles.append(DownloadedBytesRole);
+    if (previous.downloadRate != item.downloadRate) changedRoles.append(DownloadRateRole);
+    if (previous.uploadRate != item.uploadRate) changedRoles.append(UploadRateRole);
+    if (previous.pieceCount != item.pieceCount) changedRoles.append(PieceCountRole);
+    if (previous.completedPieces != item.completedPieces) changedRoles.append(CompletedPiecesRole);
+    if (previous.blockSize != item.blockSize) changedRoles.append(BlockSizeRole);
+    if (previous.pieceMap != item.pieceMap) changedRoles.append(PieceMapRole);
+    if (previous.ratio != item.ratio) changedRoles.append(RatioRole);
+    if (previous.statusText != item.statusText) changedRoles.append(StatusTextRole);
+    if (previous.errorText != item.errorText) changedRoles.append(ErrorTextRole);
+
     m_items[row] = item;
-    emit dataChanged(index(row), index(row), {
-        IdRole,
-        NameRole,
-        SourceRole,
-        SavePathRole,
-        StateRole,
-        StateTextRole,
-        ProgressRole,
-        TotalBytesRole,
-        DownloadedBytesRole,
-        DownloadRateRole,
-        UploadRateRole,
-        PieceCountRole,
-        CompletedPiecesRole,
-        BlockSizeRole,
-        PieceMapRole,
-        RatioRole,
-        StatusTextRole,
-        ErrorTextRole
-    });
+    if (!changedRoles.isEmpty()) {
+        emit dataChanged(index(row), index(row), changedRoles);
+    }
 }
 
 void DownloadListModel::removeById(const QString& id)

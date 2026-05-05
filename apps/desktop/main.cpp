@@ -17,12 +17,18 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QStandardPaths>
 #include <QUrl>
 
 namespace {
 void installStartupLogger()
 {
-    static QFile logFile(QCoreApplication::applicationDirPath() + QStringLiteral("/startup.log"));
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (logDir.isEmpty()) {
+        logDir = QCoreApplication::applicationDirPath();
+    }
+    QDir().mkpath(logDir);
+    static QFile logFile(QDir(logDir).filePath(QStringLiteral("startup.log")));
     (void)logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
     qInstallMessageHandler([](QtMsgType type, const QMessageLogContext& context, const QString& message) {
         if (!logFile.isOpen()) {

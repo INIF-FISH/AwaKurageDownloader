@@ -40,6 +40,8 @@ public:
 
     Q_INVOKABLE QVariantMap get(int row) const;
     Q_INVOKABLE QVariantMap getById(const QString& id) const;
+    Q_INVOKABLE QString pieceMapById(const QString& id) const;
+    Q_INVOKABLE int pieceMapRole() const;
     Q_INVOKABLE int indexOfId(const QString& id) const;
     Q_INVOKABLE int count() const;
 
