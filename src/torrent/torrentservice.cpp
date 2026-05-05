@@ -6,18 +6,27 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
+#include <QStandardPaths>
 
 #include <libtorrent/add_torrent_params.hpp>
+#include <libtorrent/announce_entry.hpp>
 #include <libtorrent/alert_types.hpp>
 #include <libtorrent/error_code.hpp>
 #include <libtorrent/magnet_uri.hpp>
 #include <libtorrent/read_resume_data.hpp>
 #include <libtorrent/settings_pack.hpp>
 #include <libtorrent/torrent_info.hpp>
+#include <libtorrent/write_resume_data.hpp>
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 
 namespace awa::torrent {
 namespace lt = libtorrent;
@@ -53,6 +62,73 @@ QString sampledPieceMap(const lt::typed_bitfield<lt::piece_index_t>& pieces, int
     }
     return map;
 }
+
+awa::core::DownloadState stateFromInt(int state)
+{
+    switch (state) {
+    case static_cast<int>(awa::core::DownloadState::Queued): return awa::core::DownloadState::Queued;
+    case static_cast<int>(awa::core::DownloadState::FetchingMetadata): return awa::core::DownloadState::FetchingMetadata;
+    case static_cast<int>(awa::core::DownloadState::Downloading): return awa::core::DownloadState::Downloading;
+    case static_cast<int>(awa::core::DownloadState::Paused): return awa::core::DownloadState::Paused;
+    case static_cast<int>(awa::core::DownloadState::Seeding): return awa::core::DownloadState::Seeding;
+    case static_cast<int>(awa::core::DownloadState::Finished): return awa::core::DownloadState::Finished;
+    case static_cast<int>(awa::core::DownloadState::Error): return awa::core::DownloadState::Error;
+    default: return awa::core::DownloadState::Queued;
+    }
+}
+
+QJsonObject itemToJson(const awa::core::DownloadItem& item)
+{
+    QJsonArray trackers;
+    for (const auto& tracker : item.trackers) {
+        trackers.append(tracker);
+    }
+
+    return {
+        {QStringLiteral("id"), item.id},
+        {QStringLiteral("name"), item.name},
+        {QStringLiteral("source"), item.source},
+        {QStringLiteral("savePath"), item.savePath},
+        {QStringLiteral("state"), static_cast<int>(item.state)},
+        {QStringLiteral("progress"), item.progress},
+        {QStringLiteral("totalBytes"), QString::number(item.totalBytes)},
+        {QStringLiteral("downloadedBytes"), QString::number(item.downloadedBytes)},
+        {QStringLiteral("pieceCount"), item.pieceCount},
+        {QStringLiteral("completedPieces"), item.completedPieces},
+        {QStringLiteral("blockSize"), item.blockSize},
+        {QStringLiteral("pieceMap"), item.pieceMap},
+        {QStringLiteral("ratio"), item.ratio},
+        {QStringLiteral("statusText"), item.statusText},
+        {QStringLiteral("errorText"), item.errorText},
+        {QStringLiteral("createdAt"), item.createdAt.toUTC().toString(Qt::ISODateWithMs)},
+        {QStringLiteral("trackers"), trackers}
+    };
+}
+
+awa::core::DownloadItem itemFromJson(const QJsonObject& object)
+{
+    awa::core::DownloadItem item;
+    item.id = object.value(QStringLiteral("id")).toString();
+    item.name = object.value(QStringLiteral("name")).toString();
+    item.source = object.value(QStringLiteral("source")).toString();
+    item.savePath = object.value(QStringLiteral("savePath")).toString();
+    item.state = stateFromInt(object.value(QStringLiteral("state")).toInt());
+    item.progress = object.value(QStringLiteral("progress")).toDouble();
+    item.totalBytes = object.value(QStringLiteral("totalBytes")).toString().toLongLong();
+    item.downloadedBytes = object.value(QStringLiteral("downloadedBytes")).toString().toLongLong();
+    item.pieceCount = object.value(QStringLiteral("pieceCount")).toInt();
+    item.completedPieces = object.value(QStringLiteral("completedPieces")).toInt();
+    item.blockSize = object.value(QStringLiteral("blockSize")).toInt();
+    item.pieceMap = object.value(QStringLiteral("pieceMap")).toString();
+    item.ratio = object.value(QStringLiteral("ratio")).toDouble();
+    item.statusText = object.value(QStringLiteral("statusText")).toString();
+    item.errorText = object.value(QStringLiteral("errorText")).toString();
+    item.createdAt = QDateTime::fromString(object.value(QStringLiteral("createdAt")).toString(), Qt::ISODateWithMs);
+    for (const auto& tracker : object.value(QStringLiteral("trackers")).toArray()) {
+        item.trackers.append(tracker.toString());
+    }
+    return item;
+}
 } // namespace
 
 TorrentService::TorrentService(QObject* parent)
@@ -71,10 +147,14 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_bool(lt::settings_pack::auto_sequential, false);
     settings.set_bool(lt::settings_pack::piece_extent_affinity, false);
     settings.set_bool(lt::settings_pack::prioritize_partial_pieces, false);
+    settings.set_bool(lt::settings_pack::prefer_rc4, true);
     settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.0");
     settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:6881-6891,[::]:6881-6891");
     settings.set_str(lt::settings_pack::dht_bootstrap_nodes,
         "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881");
+    settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_forced);
+    settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_forced);
+    settings.set_int(lt::settings_pack::allowed_enc_level, lt::settings_pack::pe_both);
     settings.set_int(lt::settings_pack::connections_limit, 500);
     settings.set_int(lt::settings_pack::active_downloads, 20);
     settings.set_int(lt::settings_pack::active_limit, 200);
@@ -101,11 +181,40 @@ TorrentService::TorrentService(QObject* parent)
 
     connect(&m_alertTimer, &QTimer::timeout, this, &TorrentService::pollAlerts);
     connect(&m_statusTimer, &QTimer::timeout, this, &TorrentService::refreshStatuses);
+    connect(&m_resumeSaveTimer, &QTimer::timeout, this, &TorrentService::requestResumeDataForAll);
     m_alertTimer.start(250);
     m_statusTimer.start(1000);
+    m_resumeSaveTimer.start(30000);
 }
 
-TorrentService::~TorrentService() = default;
+TorrentService::~TorrentService()
+{
+    int outstanding = 0;
+    for (auto it = m_handles.cbegin(); it != m_handles.cend(); ++it) {
+        if (it.value().is_valid()) {
+            requestResumeData(it.key(), true);
+            ++outstanding;
+        }
+    }
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (outstanding > 0 && std::chrono::steady_clock::now() < deadline) {
+        if (m_session->wait_for_alert(std::chrono::milliseconds(500)) == nullptr) {
+            continue;
+        }
+        std::vector<lt::alert*> alerts;
+        m_session->pop_alerts(&alerts);
+        for (const auto* alert : alerts) {
+            if (const auto* resumeData = lt::alert_cast<lt::save_resume_data_alert>(alert)) {
+                writeResumeData(handleId(resumeData->handle), resumeData->params);
+                --outstanding;
+            } else if (lt::alert_cast<lt::save_resume_data_failed_alert>(alert)) {
+                --outstanding;
+            }
+        }
+    }
+    persistItems();
+}
 
 void TorrentService::addTorrentFile(const QString& path, const awa::core::DownloadOptions& options)
 {
@@ -123,6 +232,7 @@ void TorrentService::addTorrentFile(const QString& path, const awa::core::Downlo
     params.save_path = options.savePath.toStdString();
     params.flags &= ~lt::torrent_flags::auto_managed;
     params.flags &= ~lt::torrent_flags::sequential_download;
+    applyTrackers(params);
     if (options.startPaused) {
         params.flags |= lt::torrent_flags::paused;
     }
@@ -133,6 +243,12 @@ void TorrentService::addTorrentFile(const QString& path, const awa::core::Downlo
         return;
     }
     rememberHandle(handle, awa::core::DownloadState::Queued);
+    auto item = m_items.value(handleId(handle));
+    item.source = path;
+    item.savePath = options.savePath;
+    m_items.insert(item.id, item);
+    emit itemUpdated(item);
+    persistItems();
     if (!options.startPaused) {
         handle.resume();
         handle.force_reannounce();
@@ -160,11 +276,7 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     params.dht_nodes.emplace_back("router.bittorrent.com", 6881);
     params.dht_nodes.emplace_back("dht.transmissionbt.com", 6881);
     params.dht_nodes.emplace_back("router.utorrent.com", 6881);
-    if (params.trackers.empty()) {
-        params.trackers.emplace_back("udp://tracker.opentrackr.org:1337/announce");
-        params.trackers.emplace_back("udp://open.stealth.si:80/announce");
-        params.trackers.emplace_back("udp://tracker.openbittorrent.com:6969/announce");
-    }
+    applyTrackers(params);
     const auto infoHashes = params.info_hashes;
     const QString normalizedId = hashId(infoHashes);
     if (params.name.empty() && !normalizedId.isEmpty()) {
@@ -184,6 +296,7 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     pending.createdAt = QDateTime::currentDateTimeUtc();
     m_items.insert(pending.id, pending);
     emit itemUpdated(pending);
+    persistItems();
 
     auto handle = m_session->add_torrent(std::move(params), ec);
     if (ec) {
@@ -197,6 +310,12 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     }
 
     rememberHandle(handle, awa::core::DownloadState::FetchingMetadata);
+    auto item = m_items.value(handleId(handle));
+    item.source = normalizedUri;
+    item.savePath = options.savePath;
+    m_items.insert(item.id, item);
+    emit itemUpdated(item);
+    persistItems();
     if (!options.startPaused) {
         handle.resume();
         handle.force_reannounce();
@@ -226,6 +345,8 @@ void TorrentService::pause(const QString& id)
         item.statusText = QStringLiteral("已暂停");
         m_items.insert(id, item);
         emit itemUpdated(item);
+        persistItems();
+        requestResumeData(id, true);
     }
 }
 
@@ -248,6 +369,8 @@ void TorrentService::resume(const QString& id)
         item.statusText = QStringLiteral("正在恢复连接...");
         m_items.insert(id, item);
         emit itemUpdated(item);
+        persistItems();
+        requestResumeData(id, true);
     }
 }
 
@@ -263,6 +386,8 @@ void TorrentService::remove(const QString& id, bool removeFiles)
         m_session->remove_torrent(m_handles.take(id));
     }
     m_items.remove(id);
+    QFile::remove(resumeDataPath(id));
+    persistItems();
     emit itemRemoved(id);
 }
 
@@ -305,6 +430,125 @@ void TorrentService::setChokingStrategy(int chokingAlgorithm, int seedChokingAlg
     m_session->apply_settings(settings);
 }
 
+void TorrentService::setTrackers(const QStringList& trackers)
+{
+    m_defaultTrackers.clear();
+    for (const auto& tracker : trackers) {
+        const auto trimmed = tracker.trimmed();
+        if (!trimmed.isEmpty() && !m_defaultTrackers.contains(trimmed, Qt::CaseInsensitive)) {
+            m_defaultTrackers.append(trimmed);
+        }
+    }
+
+    for (const auto& handle : m_handles) {
+        applyTrackersToHandle(handle);
+    }
+    if (m_persistedTasksLoaded && !m_handles.isEmpty()) {
+        requestResumeDataForAll();
+    }
+}
+
+void TorrentService::loadPersistedTasks()
+{
+    if (m_persistedTasksLoaded) {
+        return;
+    }
+    m_persistedTasksLoaded = true;
+
+    QJsonArray downloads;
+    QFile file(indexFilePath());
+    if (file.open(QIODevice::ReadOnly)) {
+        const auto document = QJsonDocument::fromJson(file.readAll());
+        downloads = document.object().value(QStringLiteral("downloads")).toArray();
+    }
+    if (downloads.isEmpty()) {
+        const auto resumeFiles = QDir(persistenceDir()).entryInfoList(
+            {QStringLiteral("*.fastresume")},
+            QDir::Files | QDir::Readable,
+            QDir::Name);
+        for (const auto& resumeFile : resumeFiles) {
+            QJsonObject recovered;
+            recovered.insert(QStringLiteral("id"), resumeFile.completeBaseName());
+            recovered.insert(QStringLiteral("state"), static_cast<int>(awa::core::DownloadState::Downloading));
+            downloads.append(recovered);
+        }
+    }
+    for (const auto& value : downloads) {
+        auto stored = itemFromJson(value.toObject());
+        if (stored.id.isEmpty()) {
+            continue;
+        }
+
+        lt::error_code ec;
+        lt::add_torrent_params params;
+        QFile resumeFile(resumeDataPath(stored.id));
+        if (resumeFile.open(QIODevice::ReadOnly)) {
+            const QByteArray data = resumeFile.readAll();
+            params = lt::read_resume_data(lt::span<char const>(data.constData(), data.size()), ec);
+        }
+
+        if (ec || (!params.ti && params.info_hashes == lt::info_hash_t {})) {
+            if (stored.source.startsWith(QStringLiteral("magnet:"), Qt::CaseInsensitive)) {
+                awa::core::DownloadOptions options;
+                options.savePath = stored.savePath;
+                options.startPaused = stored.state == awa::core::DownloadState::Paused;
+                addMagnet(stored.source, options);
+            } else if (QFileInfo::exists(stored.source)) {
+                awa::core::DownloadOptions options;
+                options.savePath = stored.savePath;
+                options.startPaused = stored.state == awa::core::DownloadState::Paused;
+                addTorrentFile(stored.source, options);
+            } else {
+                stored.state = awa::core::DownloadState::Error;
+                stored.errorText = QStringLiteral("任务来源不可用，无法恢复");
+                stored.statusText = stored.errorText;
+                m_items.insert(stored.id, stored);
+                emit itemUpdated(stored);
+            }
+            continue;
+        }
+
+        if (!stored.savePath.isEmpty()) {
+            params.save_path = stored.savePath.toStdString();
+        }
+        applyTrackers(params);
+        params.flags &= ~lt::torrent_flags::auto_managed;
+        params.flags &= ~lt::torrent_flags::sequential_download;
+        if (stored.state == awa::core::DownloadState::Paused) {
+            params.flags |= lt::torrent_flags::paused;
+        } else {
+            params.flags &= ~lt::torrent_flags::paused;
+        }
+
+        auto handle = m_session->add_torrent(std::move(params), ec);
+        if (ec) {
+            stored.state = awa::core::DownloadState::Error;
+            stored.errorText = QString::fromStdString(ec.message());
+            stored.statusText = QStringLiteral("恢复任务失败：%1").arg(stored.errorText);
+            m_items.insert(stored.id, stored);
+            emit itemUpdated(stored);
+            continue;
+        }
+
+        rememberHandle(handle, stored.state);
+        auto restored = m_items.value(handleId(handle));
+        restored.source = stored.source;
+        restored.createdAt = stored.createdAt.isNull() ? restored.createdAt : stored.createdAt;
+        restored.statusText = stored.state == awa::core::DownloadState::Paused
+            ? awa::core::stateToString(awa::core::DownloadState::Paused)
+            : QStringLiteral("已恢复任务");
+        m_items.insert(restored.id, restored);
+        emit itemUpdated(restored);
+        if (stored.state != awa::core::DownloadState::Paused) {
+            handle.resume();
+            handle.force_reannounce();
+            handle.force_dht_announce();
+            handle.force_lsd_announce();
+        }
+    }
+    persistItems();
+}
+
 void TorrentService::pollAlerts()
 {
     std::vector<lt::alert*> alerts;
@@ -313,8 +557,13 @@ void TorrentService::pollAlerts()
     for (const auto* alert : alerts) {
         if (const auto* added = lt::alert_cast<lt::add_torrent_alert>(alert)) {
             rememberHandle(added->handle, awa::core::DownloadState::Queued);
+            persistItems();
         } else if (const auto* metadata = lt::alert_cast<lt::metadata_received_alert>(alert)) {
             rememberHandle(metadata->handle, awa::core::DownloadState::Downloading);
+            requestResumeData(handleId(metadata->handle), true);
+            persistItems();
+        } else if (const auto* resumeData = lt::alert_cast<lt::save_resume_data_alert>(alert)) {
+            writeResumeData(handleId(resumeData->handle), resumeData->params);
         } else if (const auto* reply = lt::alert_cast<lt::tracker_reply_alert>(alert)) {
             const QString id = handleId(reply->handle);
             auto item = m_items.value(id);
@@ -337,6 +586,8 @@ void TorrentService::pollAlerts()
             const QString id = hashId(removed->info_hashes);
             m_handles.remove(id);
             m_items.remove(id);
+            QFile::remove(resumeDataPath(id));
+            persistItems();
             emit itemRemoved(id);
         } else if (const auto* error = lt::alert_cast<lt::torrent_error_alert>(alert)) {
             const QString id = handleId(error->handle);
@@ -360,6 +611,7 @@ void TorrentService::refreshStatuses()
         m_items.insert(item.id, item);
         emit itemUpdated(item);
     }
+    persistItems();
 }
 
 QString TorrentService::handleId(const lt::torrent_handle& handle) const
@@ -390,6 +642,10 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
     item.ratio = status.all_time_download > 0
         ? static_cast<double>(status.all_time_upload) / static_cast<double>(status.all_time_download)
         : 0.0;
+    item.trackers.clear();
+    for (const auto& tracker : handle.trackers()) {
+        item.trackers.append(QString::fromStdString(tracker.url));
+    }
 
     if ((status.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {}) {
         item.state = awa::core::DownloadState::Paused;
@@ -441,6 +697,131 @@ void TorrentService::rememberHandle(const lt::torrent_handle& handle, awa::core:
     m_items.insert(id, item);
     item.statusText = QStringLiteral("采用稀有块优先策略获取元数据");
     emit itemUpdated(item);
+}
+
+QString TorrentService::persistenceDir() const
+{
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty()) {
+        dir = QDir::homePath() + QStringLiteral("/.AwaKurageDownloader");
+    }
+    return QDir(dir).filePath(QStringLiteral("torrent-state"));
+}
+
+QString TorrentService::indexFilePath() const
+{
+    return QDir(persistenceDir()).filePath(QStringLiteral("downloads.json"));
+}
+
+QString TorrentService::resumeDataPath(const QString& id) const
+{
+    return QDir(persistenceDir()).filePath(id + QStringLiteral(".fastresume"));
+}
+
+void TorrentService::persistItems() const
+{
+    QDir().mkpath(persistenceDir());
+
+    QJsonArray downloads;
+    for (const auto& item : m_items) {
+        if (!item.id.isEmpty()) {
+            downloads.append(itemToJson(item));
+        }
+    }
+
+    QJsonObject root;
+    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("downloads"), downloads);
+
+    QSaveFile file(indexFilePath());
+    if (!file.open(QIODevice::WriteOnly)) {
+        return;
+    }
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    file.commit();
+}
+
+void TorrentService::requestResumeData(const QString& id, bool force)
+{
+    if (!m_handles.contains(id)) {
+        return;
+    }
+
+    auto handle = m_handles.value(id);
+    if (!handle.is_valid()) {
+        return;
+    }
+
+    try {
+        handle.save_resume_data(force ? lt::resume_data_flags_t {} : lt::torrent_handle::only_if_modified);
+    } catch (const lt::system_error& error) {
+        spdlog::warn("Failed to request resume data for {}: {}", id.toStdString(), error.what());
+    }
+}
+
+void TorrentService::requestResumeDataForAll()
+{
+    for (auto it = m_handles.cbegin(); it != m_handles.cend(); ++it) {
+        requestResumeData(it.key());
+    }
+    persistItems();
+}
+
+void TorrentService::writeResumeData(const QString& id, const lt::add_torrent_params& params) const
+{
+    if (id.isEmpty() || !m_items.contains(id)) {
+        return;
+    }
+
+    QDir().mkpath(persistenceDir());
+    const auto data = lt::write_resume_data_buf(params);
+    QSaveFile file(resumeDataPath(id));
+    if (!file.open(QIODevice::WriteOnly)) {
+        return;
+    }
+    file.write(data.data(), static_cast<qint64>(data.size()));
+    file.commit();
+}
+
+void TorrentService::applyTrackers(lt::add_torrent_params& params) const
+{
+    for (const auto& tracker : m_defaultTrackers) {
+        const auto url = tracker.toStdString();
+        const auto exists = std::any_of(params.trackers.cbegin(), params.trackers.cend(), [&url](const std::string& existing) {
+            return existing == url;
+        });
+        if (!exists) {
+            params.trackers.push_back(url);
+        }
+    }
+
+    params.tracker_tiers.resize(params.trackers.size(), 0);
+    std::fill(params.tracker_tiers.begin(), params.tracker_tiers.end(), 0);
+}
+
+void TorrentService::applyTrackersToHandle(const lt::torrent_handle& handle) const
+{
+    if (!handle.is_valid()) {
+        return;
+    }
+
+    auto trackers = handle.trackers();
+    for (const auto& tracker : m_defaultTrackers) {
+        const auto url = tracker.toStdString();
+        const auto exists = std::any_of(trackers.cbegin(), trackers.cend(), [&url](const lt::announce_entry& existing) {
+            return existing.url == url;
+        });
+        if (!exists) {
+            lt::announce_entry entry(url);
+            entry.tier = 0;
+            trackers.push_back(entry);
+        }
+    }
+    for (auto& tracker : trackers) {
+        tracker.tier = 0;
+    }
+    handle.replace_trackers(trackers);
+    handle.force_reannounce();
 }
 
 } // namespace awa::torrent

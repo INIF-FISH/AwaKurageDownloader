@@ -69,6 +69,10 @@ int main(int argc, char* argv[])
     const QString posterUrl = QFileInfo::exists(packagedPosterPath)
         ? QUrl::fromLocalFile(packagedPosterPath).toString()
         : QStringLiteral("qrc:/images/poster.png");
+    const QString packagedQPosterPath = QGuiApplication::applicationDirPath() + QStringLiteral("/resources/QPoster.png");
+    const QString qPosterUrl = QFileInfo::exists(packagedQPosterPath)
+        ? QUrl::fromLocalFile(packagedQPosterPath).toString()
+        : QStringLiteral("qrc:/images/qposter.png");
     QGuiApplication::setWindowIcon(QIcon(logoPath));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
@@ -83,6 +87,7 @@ int main(int argc, char* argv[])
         settings.seedChokingAlgorithm(),
         settings.uploadSlots(),
         settings.optimisticSlots());
+    manager.setTrackerUrlsText(settings.trackerUrlsText());
 
     awa::torrent::TorrentService torrentService;
     manager.setBackend(&torrentService);
@@ -101,6 +106,7 @@ int main(int argc, char* argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("apiServer"), &apiServer);
     engine.rootContext()->setContextProperty(QStringLiteral("appLogoSource"), logoUrl);
     engine.rootContext()->setContextProperty(QStringLiteral("appPosterSource"), posterUrl);
+    engine.rootContext()->setContextProperty(QStringLiteral("appQPosterSource"), qPosterUrl);
     engine.loadFromModule("AwaKurageDownloader", "Main");
 
     if (engine.rootObjects().isEmpty()) {

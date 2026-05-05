@@ -1,6 +1,7 @@
 #include "awa/core/downloadmanager.h"
 
 #include <QDir>
+#include <QRegularExpression>
 #include <QStandardPaths>
 
 #include <algorithm>
@@ -56,6 +57,27 @@ int DownloadManager::optimisticSlots() const
     return m_optimisticSlots;
 }
 
+QString DownloadManager::trackerUrlsText() const
+{
+    return m_trackerUrlsText;
+}
+
+void DownloadManager::setTrackerUrlsText(const QString& text)
+{
+    const auto trackers = parseTrackerUrls(text);
+    const QString normalized = trackers.join(QLatin1Char('\n'));
+    if (normalized == m_trackerUrlsText) {
+        return;
+    }
+
+    m_trackerUrlsText = normalized;
+    emit trackersChanged();
+
+    if (m_backend) {
+        m_backend->setTrackers(trackers);
+    }
+}
+
 void DownloadManager::setDefaultSavePath(const QString& path)
 {
     if (path == m_defaultSavePath) {
@@ -87,6 +109,8 @@ void DownloadManager::setBackend(TorrentBackend* backend)
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);
     m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
     m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
+    m_backend->setTrackers(parseTrackerUrls(m_trackerUrlsText));
+    m_backend->loadPersistedTasks();
 }
 
 void DownloadManager::addTorrentFile(const QString& path, const QVariantMap& options)
@@ -160,6 +184,22 @@ DownloadOptions DownloadManager::parseOptions(const QVariantMap& options) const
     parsed.savePath = options.value(QStringLiteral("savePath"), m_defaultSavePath).toString();
     parsed.startPaused = options.value(QStringLiteral("startPaused"), false).toBool();
     return parsed;
+}
+
+QStringList DownloadManager::parseTrackerUrls(const QString& text) const
+{
+    QStringList result;
+    const auto parts = text.split(QRegularExpression(QStringLiteral("[\\r\\n,;\\s]+")), Qt::SkipEmptyParts);
+    for (const auto& part : parts) {
+        const auto url = part.trimmed();
+        if ((url.startsWith(QStringLiteral("udp://"), Qt::CaseInsensitive)
+                || url.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)
+                || url.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive))
+            && !result.contains(url, Qt::CaseInsensitive)) {
+            result.append(url);
+        }
+    }
+    return result;
 }
 
 } // namespace awa::core

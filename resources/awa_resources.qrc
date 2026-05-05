@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file alias="images/logo.png">LOGO.png</file>
         <file alias="images/poster.png">Poster.png</file>
+        <file alias="images/qposter.png">QPoster.png</file>
     </qresource>
 </RCC>

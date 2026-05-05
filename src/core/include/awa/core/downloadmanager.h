@@ -5,6 +5,7 @@
 
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 #include <QVariantMap>
 
 namespace awa::core {
@@ -24,6 +25,8 @@ public:
     virtual void setFilePriorities(const QString& id, const QVector<FilePriority>& priorities) = 0;
     virtual void setSpeedLimits(int downloadKiB, int uploadKiB) = 0;
     virtual void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) = 0;
+    virtual void setTrackers(const QStringList& trackers) {}
+    virtual void loadPersistedTasks() {}
 
 signals:
     void itemUpdated(const awa::core::DownloadItem& item);
@@ -41,6 +44,7 @@ class DownloadManager final : public QObject {
     Q_PROPERTY(int seedChokingAlgorithm READ seedChokingAlgorithm NOTIFY chokingStrategyChanged)
     Q_PROPERTY(int uploadSlots READ uploadSlots NOTIFY chokingStrategyChanged)
     Q_PROPERTY(int optimisticSlots READ optimisticSlots NOTIFY chokingStrategyChanged)
+    Q_PROPERTY(QString trackerUrlsText READ trackerUrlsText WRITE setTrackerUrlsText NOTIFY trackersChanged)
 
 public:
     explicit DownloadManager(QObject* parent = nullptr);
@@ -54,6 +58,8 @@ public:
     int seedChokingAlgorithm() const;
     int uploadSlots() const;
     int optimisticSlots() const;
+    QString trackerUrlsText() const;
+    void setTrackerUrlsText(const QString& text);
     void setBackend(TorrentBackend* backend);
 
     Q_INVOKABLE void addTorrentFile(const QString& path, const QVariantMap& options = {});
@@ -68,10 +74,12 @@ signals:
     void defaultSavePathChanged();
     void speedLimitsChanged();
     void chokingStrategyChanged();
+    void trackersChanged();
     void toastRequested(const QString& message);
 
 private:
     DownloadOptions parseOptions(const QVariantMap& options) const;
+    QStringList parseTrackerUrls(const QString& text) const;
 
     DownloadListModel m_downloads;
     QPointer<TorrentBackend> m_backend;
@@ -82,6 +90,7 @@ private:
     int m_seedChokingAlgorithm = 2;
     int m_uploadSlots = 8;
     int m_optimisticSlots = 1;
+    QString m_trackerUrlsText;
 };
 
 } // namespace awa::core

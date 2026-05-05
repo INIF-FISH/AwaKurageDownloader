@@ -6,48 +6,49 @@ Button {
 
     property string tone: "neutral"
 
-    implicitHeight: 36
-    implicitWidth: Math.max(86, contentItem.implicitWidth + leftPadding + rightPadding)
-    leftPadding: 16
-    rightPadding: 16
-    topPadding: 7
-    bottomPadding: 7
+    implicitHeight: 40
+    implicitWidth: Math.max(96, contentItem.implicitWidth + leftPadding + rightPadding)
+    leftPadding: 18
+    rightPadding: 18
+    topPadding: 8
+    bottomPadding: 8
     font.pixelSize: 13
     font.weight: Font.DemiBold
     flat: true
+    hoverEnabled: enabled
 
     readonly property color baseColor: {
-        if (!enabled) return "#eef2f7"
-        if (tone === "primary") return "#bfff2e"
-        if (tone === "danger") return "#ff6aa7"
+        if (!enabled) return "#dce5ee"
+        if (tone === "primary") return "#1677df"
+        if (tone === "danger") return "#ffe9ee"
         if (tone === "ghost") return "transparent"
-        return "#e9fff8"
+        return "#d9ecff"
     }
     readonly property color hoverColor: {
-        if (!enabled) return "#eef2f7"
-        if (tone === "primary") return "#adf51f"
-        if (tone === "danger") return "#ff579d"
-        if (tone === "ghost") return "#eef5f6"
-        return "#dcfff4"
+        if (!enabled) return "#dce5ee"
+        if (tone === "primary") return "#0969cf"
+        if (tone === "danger") return "#ffd5df"
+        if (tone === "ghost") return AwaTheme.primaryPale
+        return "#c6e2ff"
     }
     readonly property color pressColor: {
-        if (!enabled) return "#eef2f7"
-        if (tone === "primary") return "#9fe817"
-        if (tone === "danger") return "#f43f8a"
-        if (tone === "ghost") return "#e2e8f0"
-        return "#c7fae7"
+        if (!enabled) return "#dce5ee"
+        if (tone === "primary") return "#0757ad"
+        if (tone === "danger") return "#ffc4d1"
+        if (tone === "ghost") return AwaTheme.primarySoft
+        return "#add5ff"
     }
     readonly property color textColor: {
-        if (!enabled) return "#94a3b8"
-        if (tone === "danger") return "#1f1020"
-        return "#0f172a"
+        if (!enabled) return "#5c6d7c"
+        if (tone === "primary") return "white"
+        if (tone === "danger") return "#9d2238"
+        return "#12314f"
     }
     readonly property color lineColor: {
-        if (!enabled) return "#cbd5e1"
-        if (tone === "primary") return "#07111f"
-        if (tone === "danger") return "#0f172a"
-        if (tone === "ghost") return "#cbd5e1"
-        return "#00d1a7"
+        if (!enabled) return "#9fb0bf"
+        if (tone === "primary") return "#1677df"
+        if (tone === "danger") return "#ee91a3"
+        return "#75b7f5"
     }
 
     contentItem: Text {
@@ -61,22 +62,10 @@ Button {
     }
 
     background: Rectangle {
-        radius: 9
+        radius: AwaTheme.radiusMd
         color: control.down ? control.pressColor : control.hovered ? control.hoverColor : control.baseColor
-        border.color: control.tone === "ghost" ? control.lineColor : "transparent"
-        border.width: control.tone === "ghost" ? 1 : 0
-
-        Rectangle {
-            visible: control.enabled && control.tone !== "ghost"
-            width: parent.width
-            height: 3
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            radius: 1
-            color: control.lineColor
-            opacity: control.down ? 0.75 : 0.45
-        }
+        border.color: control.tone === "primary" ? "#0757ad" : control.lineColor
+        border.width: 1
 
         Behavior on color { ColorAnimation { duration: 120 } }
     }

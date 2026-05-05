@@ -31,6 +31,9 @@ public:
     Q_INVOKABLE void setUploadSlots(int slotCount);
     Q_INVOKABLE int optimisticSlots() const;
     Q_INVOKABLE void setOptimisticSlots(int slotCount);
+    Q_INVOKABLE QString trackerUrlsText() const;
+    Q_INVOKABLE void setTrackerUrlsText(const QString& text);
+    Q_INVOKABLE QString defaultTrackerUrlsText() const;
 
 private:
     QString m_settingsPath;

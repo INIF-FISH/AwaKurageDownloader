@@ -7,6 +7,27 @@
 #include <algorithm>
 
 namespace awa::core {
+namespace {
+QString defaultTrackers()
+{
+    return QStringList {
+        QStringLiteral("udp://tracker.opentrackr.org:1337/announce"),
+        QStringLiteral("udp://tracker.torrent.eu.org:451/announce"),
+        QStringLiteral("udp://tracker.openbittorrent.com:6969/announce"),
+        QStringLiteral("udp://open.stealth.si:80/announce"),
+        QStringLiteral("udp://tracker.moeking.me:6969/announce"),
+        QStringLiteral("udp://tracker.dler.org:6969/announce"),
+        QStringLiteral("udp://explodie.org:6969/announce"),
+        QStringLiteral("udp://tracker.bittor.pw:1337/announce"),
+        QStringLiteral("udp://tracker.opentrackr.org:6969/announce"),
+        QStringLiteral("udp://open.demonii.com:1337/announce"),
+        QStringLiteral("http://tracker.files.fm:6969/announce"),
+        QStringLiteral("http://tracker.openbittorrent.com:80/announce"),
+        QStringLiteral("https://tracker.nitrix.me:443/announce"),
+        QStringLiteral("http://tracker.torrent.eu.org:451/announce")
+    }.join(QLatin1Char('\n'));
+}
+} // namespace
 
 SettingsService::SettingsService(QObject* parent)
     : QObject(parent)
@@ -135,6 +156,23 @@ void SettingsService::setOptimisticSlots(int slotCount)
 {
     QSettings settings(m_settingsPath, QSettings::IniFormat);
     settings.setValue(QStringLiteral("torrent/optimisticSlots"), std::clamp(slotCount, 0, 10));
+}
+
+QString SettingsService::trackerUrlsText() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    return settings.value(QStringLiteral("torrent/trackerUrls"), defaultTrackers()).toString();
+}
+
+void SettingsService::setTrackerUrlsText(const QString& text)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("torrent/trackerUrls"), text.trimmed());
+}
+
+QString SettingsService::defaultTrackerUrlsText() const
+{
+    return defaultTrackers();
 }
 
 } // namespace awa::core

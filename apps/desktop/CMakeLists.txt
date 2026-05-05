@@ -11,10 +11,15 @@ qt_add_executable(AwaKurageDownloader
     ${AWA_DESKTOP_SOURCES}
 )
 
+set_source_files_properties(qml/AwaTheme.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(AwaKurageDownloader
     URI AwaKurageDownloader
     VERSION 1.0
     QML_FILES
+        qml/AwaTheme.qml
         qml/Main.qml
         qml/DownloadRow.qml
         qml/SidebarButton.qml
@@ -56,6 +61,10 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/LOGO.png"
 )
 
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/Poster.png"
+    DESTINATION bin/resources
+)
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/QPoster.png"
     DESTINATION bin/resources
 )
 

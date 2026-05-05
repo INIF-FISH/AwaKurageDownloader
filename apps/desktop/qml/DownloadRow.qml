@@ -20,12 +20,19 @@ Rectangle {
     readonly property string savePath: itemData.savePath || ""
     property int rowIndex: -1
     property bool selected: false
-    readonly property string displayName: taskName.length > 0 ? taskName : "未命名任务"
+    readonly property string displayName: taskName.length > 0 ? taskName : "Unnamed task"
     readonly property string displayStatus: statusText.length > 0 ? statusText : stateText
     readonly property int progressPercent: Math.round(progress * 100)
     readonly property int downloadKiB: Math.round(downloadRate / 1024)
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
-    readonly property bool paused: stateText === "已暂停"
+    readonly property real remainingBytes: Math.max(0, totalBytes - downloadedBytes)
+    readonly property real etaSeconds: downloadRate > 0 && remainingBytes > 0 ? remainingBytes / downloadRate : -1
+    readonly property bool paused: stateText === "已暂停" || stateText === "Paused"
+
+    signal openDetails(var item)
+    signal pauseTask(string id)
+    signal resumeTask(string id)
+    signal removeTask(string id)
 
     function formatBytes(bytes) {
         if (!bytes || bytes <= 0) {
@@ -41,19 +48,29 @@ Rectangle {
         return (unit === 0 ? Math.round(value).toString() : value.toFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2)) + " " + units[unit]
     }
 
-    signal openDetails(var item)
-    signal pauseTask(string id)
-    signal resumeTask(string id)
-    signal removeTask(string id)
+    function formatDuration(seconds) {
+        if (!seconds || seconds < 0 || !isFinite(seconds)) {
+            return "--"
+        }
 
-    height: 112
-    radius: 14
-    clip: true
-    color: selected ? "#f3ffd7" : hoverHandler.hovered ? "#fbfffd" : "#ffffff"
-    border.color: selected ? "#bfff2e" : hoverHandler.hovered ? "#cdeee7" : "#dbe7ec"
+        seconds = Math.ceil(seconds)
+        const days = Math.floor(seconds / 86400)
+        seconds %= 86400
+        const hours = Math.floor(seconds / 3600)
+        seconds %= 3600
+        const minutes = Math.floor(seconds / 60)
 
-    Behavior on color { ColorAnimation { duration: 140 } }
-    HoverHandler { id: hoverHandler }
+        if (days > 0) {
+            return days + "d " + hours + "h"
+        }
+        if (hours > 0) {
+            return hours + "h " + minutes + "m"
+        }
+        if (minutes > 0) {
+            return minutes + "m"
+        }
+        return seconds + "s"
+    }
 
     function snapshot() {
         return {
@@ -74,33 +91,51 @@ Rectangle {
         }
     }
 
+    height: 132
+    radius: AwaTheme.radiusMd
+    clip: true
+    color: selected ? "#f2f9ff" : hoverHandler.hovered ? "#fbfdff" : AwaTheme.surface
+    border.width: 0
+
+    Behavior on color { ColorAnimation { duration: 140 } }
+    HoverHandler { id: hoverHandler }
+
+    Rectangle {
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: selected ? 5 : 3
+        color: selected ? AwaTheme.primary : hoverHandler.hovered ? AwaTheme.borderStrong : AwaTheme.primarySoft
+    }
+
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: 14
+        spacing: 14
 
         Rectangle {
-            Layout.preferredWidth: 42
-            Layout.preferredHeight: 42
+            Layout.preferredWidth: 48
+            Layout.preferredHeight: 48
             radius: 12
-            color: "#e9fff8"
+            color: AwaTheme.primaryPale
+            border.width: 0
             Text {
                 anchors.centerIn: parent
                 text: "BT"
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                color: "#00a98a"
+                color: "#dc2626"
             }
         }
 
         ColumnLayout {
             Layout.fillWidth: true
             Layout.minimumWidth: 180
-            spacing: 7
+            spacing: 8
             Text {
                 Layout.fillWidth: true
                 text: rowRoot.displayName
-                color: "#07111f"
+                color: AwaTheme.ink
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
@@ -113,10 +148,25 @@ Rectangle {
                     from: 0
                     to: 1
                     value: rowRoot.progress
+                    background: Rectangle {
+                        implicitHeight: 8
+                        radius: 4
+                        color: AwaTheme.primaryPale
+                        border.color: "#d9eafd"
+                    }
+                    contentItem: Item {
+                        implicitHeight: 8
+                        Rectangle {
+                            width: parent.width * rowRoot.progress
+                            height: parent.height
+                            radius: 4
+                            color: AwaTheme.primary
+                        }
+                    }
                 }
                 Text {
                     text: rowRoot.progressPercent + "%"
-                    color: "#475569"
+                    color: AwaTheme.inkSoft
                     font.pixelSize: 12
                     Layout.preferredWidth: 42
                     horizontalAlignment: Text.AlignRight
@@ -124,15 +174,15 @@ Rectangle {
             }
             Text {
                 Layout.fillWidth: true
-                text: rowRoot.formatBytes(rowRoot.downloadedBytes) + " / " + rowRoot.formatBytes(rowRoot.totalBytes) + " · " + rowRoot.displayStatus
-                color: "#6b7f99"
+                text: rowRoot.formatBytes(rowRoot.downloadedBytes) + " / " + rowRoot.formatBytes(rowRoot.totalBytes) + " - " + rowRoot.displayStatus
+                color: AwaTheme.muted
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
             Item {
                 id: rowPieceBar
                 Layout.fillWidth: true
-                Layout.preferredHeight: 4
+                Layout.preferredHeight: 5
                 clip: true
                 readonly property int sampleCount: Math.min(rowRoot.pieceMap.length, 64)
                 Row {
@@ -145,8 +195,8 @@ Rectangle {
                                 ? Math.max(1, (rowPieceBar.width - (rowPieceBar.sampleCount - 1)) / rowPieceBar.sampleCount)
                                 : 0
                             height: rowPieceBar.height
-                            radius: 1
-                            color: rowRoot.pieceMap.charAt(index) === "1" ? "#00d1a7" : "#e3edf0"
+                            radius: 2
+                            color: rowRoot.pieceMap.charAt(index) === "1" ? "#a9eec1" : "#dceeff"
                         }
                     }
                 }
@@ -154,21 +204,22 @@ Rectangle {
         }
 
         ColumnLayout {
-            Layout.preferredWidth: 104
-            Layout.minimumWidth: 104
-            spacing: 4
+            Layout.preferredWidth: 132
+            Layout.minimumWidth: 132
+            spacing: 6
             Text {
                 Layout.fillWidth: true
                 text: "↓ " + rowRoot.downloadKiB + " KiB/s"
-                color: "#00a98a"
+                color: AwaTheme.primary
                 font.pixelSize: 12
+                font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
             Text {
                 Layout.fillWidth: true
                 text: "↑ " + rowRoot.uploadKiB + " KiB/s"
-                color: "#64748b"
+                color: "#16a34a"
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
@@ -176,7 +227,15 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: rowRoot.stateText
-                color: "#94a3b8"
+                color: AwaTheme.muted
+                font.pixelSize: 11
+                horizontalAlignment: Text.AlignRight
+                elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "ETA " + rowRoot.formatDuration(rowRoot.etaSeconds)
+                color: AwaTheme.muted
                 font.pixelSize: 11
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
@@ -184,33 +243,33 @@ Rectangle {
         }
 
         RowLayout {
-            Layout.preferredWidth: 110
-            spacing: 3
+            Layout.preferredWidth: 118
+            spacing: 4
             AcidToolButton {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                text: "⏸"
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                text: "||"
                 enabled: rowRoot.downloadId.length > 0 && !rowRoot.paused
                 ToolTip.visible: hovered
-                ToolTip.text: "暂停"
+                ToolTip.text: "Pause"
                 onClicked: rowRoot.pauseTask(rowRoot.downloadId)
             }
             AcidToolButton {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
                 text: "▶"
                 tone: "primary"
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.paused
                 ToolTip.visible: hovered
-                ToolTip.text: "继续"
+                ToolTip.text: "Resume"
                 onClicked: rowRoot.resumeTask(rowRoot.downloadId)
             }
             AcidToolButton {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                text: "⋯"
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                text: "i"
                 ToolTip.visible: hovered
-                ToolTip.text: "详情"
+                ToolTip.text: "Details"
                 onClicked: rowRoot.openDetails(rowRoot.snapshot())
             }
         }

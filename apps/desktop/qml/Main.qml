@@ -12,13 +12,19 @@ ApplicationWindow {
     minimumHeight: 620
     visible: true
     title: "AwaKurageDownloader"
-    color: "#f4f8f8"
+    color: AwaTheme.page
 
     property string selectedDownloadId: ""
     property var selectedDownload: ({})
     property string toastText: ""
     property int currentPage: 0
     property int downloadsRevision: 0
+    readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
+    readonly property string selectedStateText: selectedDownload.stateText || ""
+    readonly property bool selectedIsPaused: selectedStateText === "已暂停" || selectedStateText === "Paused"
+    readonly property bool selectedIsTerminal: selectedStateText === "已完成" || selectedStateText === "Finished" || selectedStateText === "错误" || selectedStateText === "Error"
+    readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
+    readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
     readonly property var pageTitles: ["下载任务", "RSS 订阅", "远程 API", "设置"]
     readonly property var pageSubtitles: [
         "种子、磁力、RSS 自动规则与远程控制",
@@ -26,6 +32,8 @@ ApplicationWindow {
         "本机 HTTP/WebSocket 控制接口",
         "下载目录、限速和应用偏好"
     ]
+
+    readonly property color panelDivider: "#d8dee6"
 
     function formatBytes(bytes) {
         if (!bytes || bytes <= 0) {
@@ -74,11 +82,46 @@ ApplicationWindow {
         }
     }
 
+    function showToast(message) {
+        toastText = message
+        toastPopup.open()
+    }
+
+    function addMagnetFromDialog() {
+        downloadManager.addMagnet(magnetInput.text, {"savePath": savePathInput.text})
+        magnetInput.clear()
+        magnetDialog.close()
+    }
+
+    component Panel: Rectangle {
+        radius: AwaTheme.radiusLg
+        color: AwaTheme.surface
+        border.color: AwaTheme.border
+        border.width: 1
+    }
+
+    component FieldBackground: Rectangle {
+        radius: AwaTheme.radiusMd
+        color: AwaTheme.surface
+        border.color: AwaTheme.border
+        border.width: 1
+    }
+
+    component SectionTitle: Text {
+        color: AwaTheme.ink
+        font.pixelSize: 17
+        font.weight: Font.DemiBold
+    }
+
+    component LabelText: Text {
+        color: AwaTheme.muted
+        font.pixelSize: 13
+    }
+
     Connections {
         target: downloadManager
         function onToastRequested(message) {
-            toastText = message
-            toastPopup.open()
+            showToast(message)
         }
     }
 
@@ -139,30 +182,106 @@ ApplicationWindow {
     Dialog {
         id: magnetDialog
         modal: true
-        title: "添加磁力链接"
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        width: 560
-        anchors.centerIn: parent
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 12
-            TextArea {
-                id: magnetInput
-                Layout.fillWidth: true
-                Layout.preferredHeight: 120
-                placeholderText: "magnet:?xt=urn:btih:..."
-                wrapMode: TextArea.WrapAnywhere
-            }
-            TextField {
-                id: savePathInput
-                Layout.fillWidth: true
-                text: downloadManager.defaultSavePath
-                placeholderText: "保存路径"
-            }
+        width: Math.min(620, window.width - 56)
+        height: 360
+        x: Math.round((window.width - width) / 2)
+        y: Math.round((window.height - height) / 2)
+        padding: 0
+        closePolicy: Popup.CloseOnEscape
+        Overlay.modal: Rectangle { color: "#660d3558" }
+
+        background: Rectangle {
+            radius: AwaTheme.radiusXl
+            color: AwaTheme.surface
+            border.color: AwaTheme.borderStrong
+            border.width: 1
         }
-        onAccepted: {
-            downloadManager.addMagnet(magnetInput.text, {"savePath": savePathInput.text})
-            magnetInput.clear()
+
+        contentItem: ColumnLayout {
+            spacing: 0
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 74
+                radius: AwaTheme.radiusXl
+                color: AwaTheme.surfaceSoft
+                border.color: "transparent"
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: AwaTheme.radiusXl
+                    color: parent.color
+                }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 24
+                    anchors.rightMargin: 18
+                    spacing: 12
+                    Rectangle {
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        radius: 14
+                        color: AwaTheme.primary
+                        Text {
+                            anchors.centerIn: parent
+                            text: "+"
+                            color: "white"
+                            font.pixelSize: 22
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text { text: "添加磁力链接"; color: AwaTheme.ink; font.pixelSize: 20; font.weight: Font.DemiBold }
+                        Text { text: "粘贴 magnet URI，并确认保存目录"; color: AwaTheme.muted; font.pixelSize: 12 }
+                    }
+                    AcidToolButton {
+                        text: "x"
+                        ToolTip.visible: hovered
+                        ToolTip.text: "关闭"
+                        onClicked: magnetDialog.close()
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: 24
+                spacing: 14
+                TextArea {
+                    id: magnetInput
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 118
+                    placeholderText: "magnet:?xt=urn:btih:..."
+                    wrapMode: TextArea.WrapAnywhere
+                    color: AwaTheme.ink
+                    placeholderTextColor: AwaTheme.muted
+                    selectedTextColor: "white"
+                    selectionColor: AwaTheme.primary
+                    background: FieldBackground {}
+                }
+                TextField {
+                    id: savePathInput
+                    Layout.fillWidth: true
+                    text: downloadManager.defaultSavePath
+                    placeholderText: "保存路径"
+                    color: AwaTheme.ink
+                    placeholderTextColor: AwaTheme.muted
+                    selectedTextColor: "white"
+                    selectionColor: AwaTheme.primary
+                    background: FieldBackground {}
+                }
+                Item { Layout.fillHeight: true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+                    AcidButton { text: "取消"; onClicked: magnetDialog.close() }
+                    AcidButton { text: "添加任务"; tone: "primary"; onClicked: addMagnetFromDialog() }
+                }
+            }
         }
     }
 
@@ -170,23 +289,37 @@ ApplicationWindow {
         id: toastPopup
         x: Math.round((window.width - width) / 2)
         y: 24
-        width: Math.min(520, window.width - 48)
-        height: 46
+        width: Math.min(540, window.width - 48)
+        height: 48
         modal: false
         closePolicy: Popup.NoAutoClose
         enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 140 } }
         exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 140 } }
         background: Rectangle {
-            radius: 8
-            color: "#0f172a"
+            radius: AwaTheme.radiusLg
+            color: "#f8fcff"
+            border.color: AwaTheme.borderStrong
+            border.width: 1
         }
-        contentItem: Text {
-            text: toastText
-            color: "white"
-            font.pixelSize: 13
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
+        contentItem: RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            spacing: 10
+            Rectangle {
+                Layout.preferredWidth: 8
+                Layout.preferredHeight: 8
+                radius: 4
+                color: AwaTheme.primary
+            }
+            Text {
+                Layout.fillWidth: true
+                text: toastText
+                color: AwaTheme.ink
+                font.pixelSize: 13
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+            }
         }
         Timer {
             running: toastPopup.opened
@@ -212,62 +345,90 @@ ApplicationWindow {
         spacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 246
+            Layout.preferredWidth: 286
             Layout.fillHeight: true
-            color: "#fbfffd"
-            border.color: "#dbe7ec"
+            color: "#fafdff"
+            border.width: 0
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: 1
+                color: panelDivider
+            }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                anchors.topMargin: 22
-                anchors.bottomMargin: 18
-                spacing: 16
+                anchors.leftMargin: 22
+                anchors.rightMargin: 22
+                anchors.topMargin: 24
+                anchors.bottomMargin: 20
+                spacing: 18
 
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 12
-                    Item {
-                        Layout.preferredWidth: 46
-                        Layout.preferredHeight: 46
-                        Image {
-                            anchors.centerIn: parent
-                            width: 44
-                            height: 44
-                            source: appLogoSource
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true
-                        }
+                    spacing: 8
+                    Image {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 108
+                        Layout.preferredHeight: 108
+                        source: appLogoSource
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
                     }
-                    ColumnLayout {
-                        spacing: 1
-                        Text { text: "AwaKurage"; font.pixelSize: 17; font.weight: Font.DemiBold; color: "#0f172a" }
-                        Text { text: "BT 下载器"; font.pixelSize: 12; color: "#6b7f99" }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "AwaKurage"
+                        color: AwaTheme.ink
+                        font.pixelSize: 23
+                        font.weight: Font.DemiBold
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "BT下载器"
+                        color: AwaTheme.muted
+                        font.pixelSize: 12
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
                     }
                 }
 
-                SidebarButton { Layout.fillWidth: true; text: "下载任务"; iconText: "↓"; checked: currentPage === 0; onClicked: currentPage = 0 }
-                SidebarButton { Layout.fillWidth: true; text: "RSS 订阅"; iconText: "≋"; checked: currentPage === 1; onClicked: currentPage = 1 }
-                SidebarButton { Layout.fillWidth: true; text: "远程 API"; iconText: "{}"; checked: currentPage === 2; onClicked: currentPage = 2 }
-                SidebarButton { Layout.fillWidth: true; text: "设置"; iconText: "⚙"; checked: currentPage === 3; onClicked: currentPage = 3 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    SidebarButton { Layout.fillWidth: true; text: "下载任务"; iconText: "↓"; active: currentPage === 0; onClicked: currentPage = 0 }
+                    SidebarButton { Layout.fillWidth: true; text: "RSS 订阅"; iconText: "≋"; active: currentPage === 1; onClicked: currentPage = 1 }
+                    SidebarButton { Layout.fillWidth: true; text: "远程 API"; iconText: "{}"; active: currentPage === 2; onClicked: currentPage = 2 }
+                    SidebarButton { Layout.fillWidth: true; text: "设置"; iconText: "⚙"; active: currentPage === 3; onClicked: currentPage = 3 }
+                }
 
                 Item { Layout.fillHeight: true }
 
-                Rectangle {
+                Panel {
                     Layout.fillWidth: true
-                    height: 86
-                    radius: 10
+                    Layout.preferredHeight: 158
                     clip: true
-                    color: "#f4f8f8"
-                    border.color: "#dbe7ec"
+                    Image {
+                        source: appQPosterSource
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.rightMargin: -34
+                        anchors.bottomMargin: -42
+                        width: 150
+                        height: 150
+                        opacity: 0.42
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                    }
                     Column {
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 6
-                        Text { text: "本地 API"; color: "#0f172a"; font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: "#5d718a"; font.pixelSize: 12; elide: Text.ElideRight }
-                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: "#9aaabd"; font.pixelSize: 11; elide: Text.ElideRight }
+                        anchors.margins: 14
+                        spacing: 7
+                        Text { text: "本地 API"; color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: AwaTheme.inkSoft; font.pixelSize: 12; elide: Text.ElideRight }
+                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: AwaTheme.muted; font.pixelSize: 11; elide: Text.ElideRight }
                     }
                 }
             }
@@ -280,21 +441,29 @@ ApplicationWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 76
-                color: "#fbfffd"
-                border.color: "#dbe7ec"
+                Layout.preferredHeight: 86
+                color: "#fafdff"
+                border.width: 0
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: panelDivider
+                }
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 24
-                    anchors.rightMargin: 24
+                    anchors.leftMargin: 28
+                    anchors.rightMargin: 28
                     spacing: 12
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: pageTitles[currentPage]; color: "#07111f"; font.pixelSize: 24; font.weight: Font.DemiBold }
-                        Text { text: pageSubtitles[currentPage]; color: "#6b7f99"; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                        spacing: 3
+                        Text { text: pageTitles[currentPage]; color: AwaTheme.ink; font.pixelSize: 25; font.weight: Font.DemiBold }
+                        Text { text: pageSubtitles[currentPage]; color: AwaTheme.muted; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
 
                     AcidButton {
@@ -320,33 +489,32 @@ ApplicationWindow {
                 Rectangle {
                     SplitView.preferredWidth: 740
                     SplitView.minimumWidth: 560
-                    color: "#f4f8f8"
+                    color: AwaTheme.page
 
                     Image {
-                        id: posterBackground
                         source: appPosterSource
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        anchors.rightMargin: -42
-                        anchors.bottomMargin: -34
-                        width: Math.min(parent.width * 0.62, parent.height * 0.82)
+                        anchors.rightMargin: -60
+                        anchors.bottomMargin: -58
+                        width: Math.min(parent.width * 0.58, parent.height * 0.86)
                         height: width
                         fillMode: Image.PreserveAspectFit
-                        opacity: listView.count === 0 ? 0.88 : 0.24
+                        opacity: listView.count === 0 ? 0.82 : 0.18
                         smooth: true
                     }
 
                     Rectangle {
                         anchors.fill: parent
-                        color: "#f4f8f8"
-                        opacity: listView.count === 0 ? 0.18 : 0.62
+                        color: AwaTheme.page
+                        opacity: listView.count === 0 ? 0.18 : 0.68
                     }
 
                     ListView {
                         id: listView
                         anchors.fill: parent
-                        anchors.margins: 20
-                        spacing: 10
+                        anchors.margins: 22
+                        spacing: 12
                         clip: true
                         model: downloadManager.downloads
                         displaced: Transition { NumberAnimation { properties: "x,y"; duration: 180; easing.type: Easing.OutCubic } }
@@ -368,22 +536,24 @@ ApplicationWindow {
                             onRemoveTask: function(id) { downloadManager.remove(id, false) }
                         }
 
-                        Rectangle {
+                        Panel {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
-                            anchors.leftMargin: Math.max(34, Math.round(parent.width * 0.14))
-                            width: Math.min(430, parent.width - 68)
-                            height: 210
-                            radius: 14
+                            anchors.leftMargin: Math.max(28, Math.round(parent.width * 0.1))
+                            width: Math.min(460, parent.width - 56)
+                            height: 236
                             visible: listView.count === 0
-                            color: "#fbfffd"
-                            border.color: "#d9e8ec"
                             ColumnLayout {
-                                anchors.centerIn: parent
+                                anchors.fill: parent
+                                anchors.margins: 24
                                 spacing: 14
-                                Text { text: "暂无下载任务"; color: "#07111f"; font.pixelSize: 22; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
-                                Text { text: "拖入 .torrent 文件，或添加磁力链接"; color: "#6b7f99"; font.pixelSize: 14; Layout.alignment: Qt.AlignHCenter }
-                                AcidButton { text: "添加磁力"; tone: "primary"; Layout.alignment: Qt.AlignHCenter; onClicked: magnetDialog.open() }
+                                Text { text: "暂无下载任务"; color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
+                                Text { Layout.fillWidth: true; text: "拖入 .torrent 文件，或添加磁力链接"; color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                RowLayout {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    AcidButton { text: "添加磁力"; tone: "primary"; onClicked: magnetDialog.open() }
+                                    AcidButton { text: "选择种子"; onClicked: torrentDialog.open() }
+                                }
                             }
                         }
                     }
@@ -391,21 +561,29 @@ ApplicationWindow {
 
                 Rectangle {
                     id: detailPane
-                    SplitView.preferredWidth: 360
-                    SplitView.minimumWidth: 300
-                    color: "#fbfffd"
-                    border.color: "#dbe7ec"
+                    SplitView.preferredWidth: 376
+                    SplitView.minimumWidth: 316
+                    color: "#fafdff"
+                    border.width: 0
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: 1
+                        color: panelDivider
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 20
+                        anchors.margins: 22
                         spacing: 16
                         Text {
                             Layout.fillWidth: true
                             Layout.maximumWidth: parent.width
                             text: selectedDownload.name || "任务详情"
-                            color: "#0f172a"
-                            font.pixelSize: 18
+                            color: AwaTheme.ink
+                            font.pixelSize: 19
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
@@ -414,6 +592,21 @@ ApplicationWindow {
                             from: 0
                             to: 1
                             value: selectedDownload.progress || 0
+                            background: Rectangle {
+                                implicitHeight: 9
+                                radius: 5
+                                color: AwaTheme.primaryPale
+                                border.color: AwaTheme.border
+                            }
+                            contentItem: Item {
+                                implicitHeight: 9
+                                Rectangle {
+                                    width: parent.width * (selectedDownload.progress || 0)
+                                    height: parent.height
+                                    radius: 5
+                                    color: AwaTheme.primary
+                                }
+                            }
                         }
                         GridLayout {
                             columns: 2
@@ -421,42 +614,88 @@ ApplicationWindow {
                             rowSpacing: 10
                             columnSpacing: 16
                             clip: true
-                            Text { text: "状态"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: selectedDownload.stateText || "-"; color: "#0f172a"; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 230 }
-                            Text { text: "进展"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: selectedDownload.statusText || "-"; color: "#0f172a"; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 230 }
-                            Text { text: "保存"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: selectedDownload.savePath || "-"; color: "#0f172a"; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true; Layout.maximumWidth: 230 }
-                            Text { text: "大小"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: formatBytes(selectedDownload.downloadedBytes || 0) + " / " + formatBytes(selectedDownload.totalBytes || 0); color: "#0f172a"; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 230 }
-                            Text { text: "分块"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: (selectedDownload.completedPieces || 0) + " / " + (selectedDownload.pieceCount || 0) + " pieces"; color: "#0f172a"; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 230 }
-                            Text { text: "下载"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: Math.round((selectedDownload.downloadRate || 0) / 1024) + " KiB/s"; color: "#0f172a"; font.pixelSize: 12 }
-                            Text { text: "上传"; color: "#64748b"; font.pixelSize: 12 }
-                            Text { text: Math.round((selectedDownload.uploadRate || 0) / 1024) + " KiB/s"; color: "#0f172a"; font.pixelSize: 12 }
+                            LabelText { text: "状态" }
+                            Text { text: selectedDownload.stateText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "进展" }
+                            Text { text: selectedDownload.statusText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "保存" }
+                            Text { text: selectedDownload.savePath || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "大小" }
+                            Text { text: formatBytes(selectedDownload.downloadedBytes || 0) + " / " + formatBytes(selectedDownload.totalBytes || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "分块" }
+                            Text { text: (selectedDownload.completedPieces || 0) + " / " + (selectedDownload.pieceCount || 0) + " pieces"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "下载" }
+                            Text { text: Math.round((selectedDownload.downloadRate || 0) / 1024) + " KiB/s"; color: AwaTheme.primary; font.pixelSize: 12; font.weight: Font.DemiBold }
+                            LabelText { text: "上传" }
+                            Text { text: Math.round((selectedDownload.uploadRate || 0) / 1024) + " KiB/s"; color: AwaTheme.ink; font.pixelSize: 12 }
                         }
 
-                        Item {
+                        Panel {
                             id: detailPieceBar
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 8
-                            visible: (selectedDownload.pieceMap || "").length > 0
+                            Layout.preferredHeight: 92
+                            visible: hasSelectedDownload
                             clip: true
                             readonly property int sampleCount: Math.min((selectedDownload.pieceMap || "").length, 96)
-                            Row {
+                            ColumnLayout {
                                 anchors.fill: parent
-                                spacing: 2
-                                Repeater {
-                                    model: detailPieceBar.sampleCount
-                                    Rectangle {
-                                        width: detailPieceBar.sampleCount > 0
-                                            ? Math.max(1, (detailPieceBar.width - ((detailPieceBar.sampleCount - 1) * 2)) / detailPieceBar.sampleCount)
-                                            : 0
-                                        height: detailPieceBar.height
-                                        radius: 2
-                                        color: selectedDownload.pieceMap.charAt(index) === "1" ? "#0f766e" : "#e2e8f0"
+                                anchors.margins: 12
+                                spacing: 8
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "分块跟踪"
+                                        color: AwaTheme.ink
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
                                     }
+                                    Text {
+                                        text: (selectedDownload.completedPieces || 0) + " / " + (selectedDownload.pieceCount || 0)
+                                        color: AwaTheme.muted
+                                        font.pixelSize: 12
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 20
+                                    radius: 6
+                                    color: AwaTheme.primaryPale
+                                    border.color: AwaTheme.border
+                                    clip: true
+                                    Row {
+                                        anchors.fill: parent
+                                        anchors.margins: 3
+                                        spacing: 2
+                                        visible: detailPieceBar.sampleCount > 0
+                                        Repeater {
+                                            model: detailPieceBar.sampleCount
+                                            Rectangle {
+                                                width: detailPieceBar.sampleCount > 0
+                                                    ? Math.max(1, (parent.width - ((detailPieceBar.sampleCount - 1) * 2)) / detailPieceBar.sampleCount)
+                                                    : 0
+                                                height: parent.height
+                                                radius: 3
+                                                color: (selectedDownload.pieceMap || "").charAt(index) === "1" ? "#a9eec1" : "#dceeff"
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: detailPieceBar.sampleCount === 0
+                                        text: "等待分块数据"
+                                        color: AwaTheme.muted
+                                        font.pixelSize: 11
+                                    }
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#a9eec1"; border.color: "#6fcf8d" }
+                                    Text { text: "已完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#dceeff"; border.color: AwaTheme.border }
+                                    Text { text: "未完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Item { Layout.fillWidth: true }
                                 }
                             }
                         }
@@ -466,14 +705,14 @@ ApplicationWindow {
                             AcidButton {
                                 text: "暂停"
                                 Layout.fillWidth: true
-                                enabled: selectedDownloadId.length > 0 && selectedDownload.stateText !== "已暂停"
+                                enabled: selectedCanPause
                                 onClicked: downloadManager.pause(selectedDownloadId)
                             }
                             AcidButton {
                                 text: "继续"
                                 tone: "primary"
                                 Layout.fillWidth: true
-                                enabled: selectedDownloadId.length > 0 && selectedDownload.stateText === "已暂停"
+                                enabled: selectedCanResume
                                 onClicked: downloadManager.resume(selectedDownloadId)
                             }
                         }
@@ -485,13 +724,9 @@ ApplicationWindow {
                             onClicked: downloadManager.remove(selectedDownloadId, false)
                         }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 1
-                            color: "#e2e8f0"
-                        }
+                        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
 
-                        Text { Layout.fillWidth: true; text: "RSS 自动下载默认关闭"; color: "#64748b"; font.pixelSize: 12; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: "RSS 自动下载默认关闭"; color: AwaTheme.muted; font.pixelSize: 12; elide: Text.ElideRight }
                         Switch {
                             Layout.fillWidth: true
                             text: "启用 RSS 自动匹配"
@@ -507,36 +742,33 @@ ApplicationWindow {
                 visible: currentPage === 1
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "#f8fafc"
+                color: AwaTheme.page
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 24
                     spacing: 16
 
-                    Rectangle {
+                    Panel {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: rssAddContent.implicitHeight + 36
-                        Layout.minimumHeight: 260
-                        radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2e8f0"
+                        Layout.preferredHeight: rssAddContent.implicitHeight + 38
+                        Layout.minimumHeight: 264
 
                         ColumnLayout {
                             id: rssAddContent
                             anchors.fill: parent
-                            anchors.margins: 18
-                            spacing: 12
-                            Text { text: "添加 RSS 源"; color: "#0f172a"; font.pixelSize: 17; font.weight: Font.DemiBold }
+                            anchors.margins: 20
+                            spacing: 13
+                            SectionTitle { text: "添加 RSS 源" }
                             Text {
                                 Layout.fillWidth: true
                                 text: "已内置默认源：FOSS Torrents、Academic Torrents"
-                                color: "#64748b"
+                                color: AwaTheme.muted
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
                             }
-                            TextField { id: rssTitleInput; Layout.fillWidth: true; placeholderText: "订阅名称" }
-                            TextField { id: rssUrlInput; Layout.fillWidth: true; placeholderText: "https://example.com/feed.xml" }
+                            TextField { id: rssTitleInput; Layout.fillWidth: true; placeholderText: "订阅名称"; color: AwaTheme.ink; placeholderTextColor: AwaTheme.muted; background: FieldBackground {} }
+                            TextField { id: rssUrlInput; Layout.fillWidth: true; placeholderText: "https://example.com/feed.xml"; color: AwaTheme.ink; placeholderTextColor: AwaTheme.muted; background: FieldBackground {} }
                             RowLayout {
                                 Layout.fillWidth: true
                                 AcidButton {
@@ -558,19 +790,16 @@ ApplicationWindow {
                         }
                     }
 
-                    Rectangle {
+                    Panel {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 130
-                        radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2e8f0"
+                        Layout.preferredHeight: 136
                         ColumnLayout {
                             anchors.fill: parent
-                            anchors.margins: 18
+                            anchors.margins: 20
                             spacing: 10
-                            Text { text: "RSS 状态"; color: "#0f172a"; font.pixelSize: 17; font.weight: Font.DemiBold }
-                            Text { Layout.fillWidth: true; text: "订阅数量：" + rssService.subscriptionCount; color: "#334155"; font.pixelSize: 13 }
-                            Text { Layout.fillWidth: true; text: rssService.lastStatus.length > 0 ? rssService.lastStatus : "尚未刷新"; color: "#64748b"; font.pixelSize: 13; elide: Text.ElideRight }
+                            SectionTitle { text: "RSS 状态" }
+                            Text { Layout.fillWidth: true; text: "订阅数量：" + rssService.subscriptionCount; color: AwaTheme.inkSoft; font.pixelSize: 13 }
+                            Text { Layout.fillWidth: true; text: rssService.lastStatus.length > 0 ? rssService.lastStatus : "尚未刷新"; color: AwaTheme.muted; font.pixelSize: 13; elide: Text.ElideRight }
                         }
                     }
 
@@ -582,40 +811,41 @@ ApplicationWindow {
                 visible: currentPage === 2
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "#f8fafc"
+                color: AwaTheme.page
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 24
                     spacing: 16
 
-                    Rectangle {
+                    Panel {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 260
-                        radius: 8
-                        color: "#ffffff"
-                        border.color: "#e2e8f0"
+                        Layout.preferredHeight: 268
 
                         GridLayout {
                             anchors.fill: parent
-                            anchors.margins: 18
+                            anchors.margins: 20
                             columns: 2
-                            rowSpacing: 12
+                            rowSpacing: 13
                             columnSpacing: 18
 
-                            Text { text: "监听状态"; color: "#64748b"; font.pixelSize: 13 }
-                            Text { text: apiServer.listening ? "运行中" : "已停止"; color: apiServer.listening ? "#0f766e" : "#b91c1c"; font.pixelSize: 13; font.weight: Font.DemiBold }
-                            Text { text: "HTTP"; color: "#64748b"; font.pixelSize: 13 }
-                            Text { Layout.fillWidth: true; text: "http://127.0.0.1:" + apiServer.port + "/api/v1/downloads"; color: "#0f172a"; font.pixelSize: 13; elide: Text.ElideRight }
-                            Text { text: "WebSocket"; color: "#64748b"; font.pixelSize: 13 }
-                            Text { Layout.fillWidth: true; text: "ws://127.0.0.1:" + (apiServer.port + 1) + "/api/v1/events"; color: "#0f172a"; font.pixelSize: 13; elide: Text.ElideRight }
-                            Text { text: "Token"; color: "#64748b"; font.pixelSize: 13 }
+                            LabelText { text: "监听状态" }
+                            Text { text: apiServer.listening ? "运行中" : "已停止"; color: apiServer.listening ? AwaTheme.success : AwaTheme.danger; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            LabelText { text: "HTTP" }
+                            Text { Layout.fillWidth: true; text: "http://127.0.0.1:" + apiServer.port + "/api/v1/downloads"; color: AwaTheme.ink; font.pixelSize: 13; elide: Text.ElideRight }
+                            LabelText { text: "WebSocket" }
+                            Text { Layout.fillWidth: true; text: "ws://127.0.0.1:" + (apiServer.port + 1) + "/api/v1/events"; color: AwaTheme.ink; font.pixelSize: 13; elide: Text.ElideRight }
+                            LabelText { text: "Token" }
                             TextArea {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 72
+                                Layout.preferredHeight: 76
                                 readOnly: true
                                 wrapMode: TextArea.WrapAnywhere
                                 text: apiServer.token
+                                color: AwaTheme.ink
+                                selectedTextColor: "white"
+                                selectionColor: AwaTheme.primary
+                                background: FieldBackground {}
                             }
                             Item {}
                             RowLayout {
@@ -628,7 +858,7 @@ ApplicationWindow {
                     Text {
                         Layout.fillWidth: true
                         text: "请求需携带 Authorization: Bearer <Token>。API 默认只监听 127.0.0.1。"
-                        color: "#64748b"
+                        color: AwaTheme.muted
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                     }
@@ -641,11 +871,13 @@ ApplicationWindow {
                 visible: currentPage === 3
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "#f8fafc"
+                color: AwaTheme.page
 
                 ScrollView {
+                    id: settingsScrollView
                     anchors.fill: parent
                     clip: true
+                    interactive: !trackerUrlsInput.activeFocus
 
                     ColumnLayout {
                         width: Math.max(parent.width - 48, 620)
@@ -654,19 +886,16 @@ ApplicationWindow {
 
                         Item { Layout.preferredHeight: 8 }
 
-                        Rectangle {
+                        Panel {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: settingsContent.implicitHeight + 36
-                            radius: 8
-                            color: "#ffffff"
-                            border.color: "#e2e8f0"
+                            Layout.preferredHeight: settingsContent.implicitHeight + 40
 
                             ColumnLayout {
                                 id: settingsContent
                                 anchors.fill: parent
-                                anchors.margins: 18
+                                anchors.margins: 20
                                 spacing: 14
-                                Text { text: "下载设置"; color: "#0f172a"; font.pixelSize: 17; font.weight: Font.DemiBold }
+                                SectionTitle { text: "下载设置" }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     TextField {
@@ -674,6 +903,9 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         text: downloadManager.defaultSavePath
                                         placeholderText: "默认保存目录"
+                                        color: AwaTheme.ink
+                                        placeholderTextColor: AwaTheme.muted
+                                        background: FieldBackground {}
                                     }
                                     AcidButton { text: "选择"; onClicked: folderDialog.open() }
                                     AcidButton {
@@ -682,8 +914,7 @@ ApplicationWindow {
                                         onClicked: {
                                             downloadManager.defaultSavePath = settingsPathInput.text
                                             settingsService.setDownloadDirectory(settingsPathInput.text)
-                                            toastText = "设置已保存"
-                                            toastPopup.open()
+                                            showToast("设置已保存")
                                         }
                                     }
                                 }
@@ -695,6 +926,9 @@ ApplicationWindow {
                                         text: downloadManager.downloadLimitKiB.toString()
                                         placeholderText: "下载限速 KiB/s，0 表示不限"
                                         inputMethodHints: Qt.ImhDigitsOnly
+                                        color: AwaTheme.ink
+                                        placeholderTextColor: AwaTheme.muted
+                                        background: FieldBackground {}
                                     }
                                     TextField {
                                         id: ulLimitInput
@@ -702,6 +936,9 @@ ApplicationWindow {
                                         text: downloadManager.uploadLimitKiB.toString()
                                         placeholderText: "上传限速 KiB/s，0 表示不限"
                                         inputMethodHints: Qt.ImhDigitsOnly
+                                        color: AwaTheme.ink
+                                        placeholderTextColor: AwaTheme.muted
+                                        background: FieldBackground {}
                                     }
                                     AcidButton {
                                         text: "应用限速"
@@ -715,55 +952,33 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 1
-                                    color: "#e2e8f0"
-                                }
-                                Text { text: "块选择与上传博弈"; color: "#0f172a"; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
+                                Text { text: "块选择与上传博弈"; color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
                                 GridLayout {
                                     Layout.fillWidth: true
                                     columns: 2
                                     rowSpacing: 10
                                     columnSpacing: 14
-                                    Text { text: "块选择策略"; color: "#64748b"; font.pixelSize: 13 }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "稀有块优先"
-                                        color: "#0f172a"
-                                        font.pixelSize: 13
-                                        font.weight: Font.DemiBold
-                                    }
-                                    Text { text: "上传博弈策略"; color: "#64748b"; font.pixelSize: 13 }
+                                    LabelText { text: "块选择策略" }
+                                    Text { Layout.fillWidth: true; text: "稀有块优先"; color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                    LabelText { text: "上传博弈策略" }
                                     ComboBox {
                                         id: chokingAlgorithmBox
                                         Layout.fillWidth: true
                                         model: ["互惠固定槽位", "互惠速率自适应"]
                                         currentIndex: downloadManager.chokingAlgorithm
                                     }
-                                    Text { text: "做种时策略"; color: "#64748b"; font.pixelSize: 13 }
+                                    LabelText { text: "做种时策略" }
                                     ComboBox {
                                         id: seedChokingAlgorithmBox
                                         Layout.fillWidth: true
                                         model: ["轮询", "最快上传优先", "反吸血博弈"]
                                         currentIndex: downloadManager.seedChokingAlgorithm
                                     }
-                                    Text { text: "上传槽位"; color: "#64748b"; font.pixelSize: 13 }
-                                    SpinBox {
-                                        id: uploadSlotsSpin
-                                        Layout.fillWidth: true
-                                        from: 1
-                                        to: 200
-                                        value: downloadManager.uploadSlots
-                                    }
-                                    Text { text: "乐观解阻塞槽位"; color: "#64748b"; font.pixelSize: 13 }
-                                    SpinBox {
-                                        id: optimisticSlotsSpin
-                                        Layout.fillWidth: true
-                                        from: 0
-                                        to: 10
-                                        value: downloadManager.optimisticSlots
-                                    }
+                                    LabelText { text: "上传槽位" }
+                                    SpinBox { id: uploadSlotsSpin; Layout.fillWidth: true; from: 1; to: 200; value: downloadManager.uploadSlots }
+                                    LabelText { text: "乐观解阻塞槽位" }
+                                    SpinBox { id: optimisticSlotsSpin; Layout.fillWidth: true; from: 0; to: 10; value: downloadManager.optimisticSlots }
                                     Item {}
                                     AcidButton {
                                         text: "应用策略"
@@ -777,11 +992,56 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                Rectangle {
+                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
+                                Text { text: "Trackers"; color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                ScrollView {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 1
-                                    color: "#e2e8f0"
+                                    Layout.preferredHeight: 188
+                                    clip: true
+                                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                                    background: FieldBackground {}
+
+                                    TextArea {
+                                        id: trackerUrlsInput
+                                        width: parent.availableWidth
+                                        text: downloadManager.trackerUrlsText
+                                        placeholderText: "udp://tracker.example.org:6969/announce"
+                                        wrapMode: TextArea.WrapAnywhere
+                                        selectByMouse: true
+                                        activeFocusOnPress: true
+                                        color: AwaTheme.ink
+                                        placeholderTextColor: AwaTheme.muted
+                                        selectedTextColor: "white"
+                                        selectionColor: AwaTheme.primary
+                                        background: null
+                                    }
                                 }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: "One tracker per line. All trackers are announced in parallel."
+                                        color: AwaTheme.muted
+                                        font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+                                    AcidButton {
+                                        text: "Defaults"
+                                        onClicked: trackerUrlsInput.text = settingsService.defaultTrackerUrlsText()
+                                    }
+                                    AcidButton {
+                                        text: "Apply"
+                                        tone: "primary"
+                                        onClicked: {
+                                            downloadManager.trackerUrlsText = trackerUrlsInput.text
+                                            settingsService.setTrackerUrlsText(downloadManager.trackerUrlsText)
+                                            trackerUrlsInput.text = downloadManager.trackerUrlsText
+                                            showToast("Trackers saved")
+                                        }
+                                    }
+                                }
+                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     TextField {
@@ -790,6 +1050,9 @@ ApplicationWindow {
                                         text: settingsService.apiPort().toString()
                                         placeholderText: "API 端口"
                                         inputMethodHints: Qt.ImhDigitsOnly
+                                        color: AwaTheme.ink
+                                        placeholderTextColor: AwaTheme.muted
+                                        background: FieldBackground {}
                                     }
                                     Switch {
                                         id: apiAutoStartSwitch
@@ -802,8 +1065,7 @@ ApplicationWindow {
                                         onClicked: {
                                             settingsService.setApiPort(positiveInt(apiPortInput.text, 18777))
                                             settingsService.setStartApiAutomatically(apiAutoStartSwitch.checked)
-                                            toastText = "API 设置已保存，重启后生效"
-                                            toastPopup.open()
+                                            showToast("API 设置已保存，重启后生效")
                                         }
                                     }
                                 }
