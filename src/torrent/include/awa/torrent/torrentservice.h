@@ -74,6 +74,7 @@ private:
     QHash<QString, libtorrent::torrent_handle> m_handles;
     QHash<QString, awa::core::DownloadItem> m_items;
     QHash<QString, QDateTime> m_lastMetadataRetry;
+    QHash<QString, QDateTime> m_lastPeerDiscovery;
     QHash<QString, int> m_metadataRetryCounts;
     QHash<QString, TrackerHealth> m_trackerHealth;
     QSet<QString> m_removedIds;

@@ -43,6 +43,14 @@ struct DownloadItem {
     int blockSize = 0;
     QString pieceMap;
     double ratio = 0.0;
+    int peerCount = 0;
+    int seedCount = 0;
+    int connectionCount = 0;
+    int trackerCount = 0;
+    int workingTrackerCount = 0;
+    int failedTrackerCount = 0;
+    QString dhtStatusText;
+    QString connectionHealthText;
     QString statusText;
     QString errorText;
     QDateTime createdAt;

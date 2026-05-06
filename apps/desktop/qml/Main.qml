@@ -818,6 +818,14 @@ ApplicationWindow {
                             Text { text: selectedDownload.stateText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
                             LabelText { text: "进展" }
                             Text { text: selectedDownload.statusText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "连接" }
+                            Text { text: selectedDownload.connectionHealthText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "Peers / Seeds" }
+                            Text { text: (selectedDownload.peerCount || 0) + " / " + (selectedDownload.seedCount || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "Tracker" }
+                            Text { text: (selectedDownload.workingTrackerCount || 0) + " working / " + (selectedDownload.trackerCount || 0) + " total"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: "DHT" }
+                            Text { text: selectedDownload.dhtStatusText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
                             LabelText { text: "保存" }
                             Text { text: selectedDownload.savePath || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true; Layout.maximumWidth: 238 }
                             LabelText { text: "大小" }

@@ -155,6 +155,15 @@ QJsonArray LocalApiServer::downloadsJson() const
         object["downloadedBytes"] = static_cast<double>(item.downloadedBytes);
         object["downloadRate"] = static_cast<double>(item.downloadRate);
         object["uploadRate"] = static_cast<double>(item.uploadRate);
+        object["peerCount"] = item.peerCount;
+        object["seedCount"] = item.seedCount;
+        object["connectionCount"] = item.connectionCount;
+        object["trackerCount"] = item.trackerCount;
+        object["workingTrackerCount"] = item.workingTrackerCount;
+        object["failedTrackerCount"] = item.failedTrackerCount;
+        object["dhtStatus"] = item.dhtStatusText;
+        object["connectionHealth"] = item.connectionHealthText;
+        object["statusText"] = item.statusText;
         object["pieceCount"] = item.pieceCount;
         object["completedPieces"] = item.completedPieces;
         object["savePath"] = item.savePath;
