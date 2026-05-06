@@ -1,117 +1,148 @@
 # AwaKurageDownloader
 
-> 面向番剧资源获取场景优化的高效下载工具
+AwaKurageDownloader 是一个基于 Qt 6 和 libtorrent 的桌面 BitTorrent 下载器。它希望把常用的下载、订阅、状态查看和本地自动化能力放在一个清爽的界面里：能手动添加任务，也能挂着跑；能看见速度和连接状态，也能通过本地 API 接到自己的小工具里。
 
----
+项目名里的 “AwaKurage” 来自日语里的水母。水母看起来轻轻的，但触手很会抓住该抓住的东西。这个下载器也想做成这样：安静、稳定、不过度打扰你。
 
-## 项目简介
+## 现在能做什么
 
-**AwaKurageDownloader** 是一款针对番剧资源分发特点设计的下载工具，强调在高频更新、批量获取与长期维护场景下的稳定性与效率。
-
-在实际使用中，番剧资源往往具有 **更新周期固定、分发节点波动大、资源冷热差异明显** 等特点。本项目围绕这些特性进行优化，使下载过程更加可控、可靠。
-
----
-
-## 核心能力
-
-### 高效传输
-
-* 基于分布式传输网络（BT / P2P）
-* 多节点并行连接与动态调度
-* 针对热门与冷门资源均提供稳定策略
-
-### 任务管理
-
-* 支持多任务并行与队列化调度
-* 长周期运行稳定（适合整季资源获取）
-* 断点续传与任务状态持久化
-
-### 状态可观测
-
-* 实时显示下载进度与速率
-* peers / seeds 状态清晰可见
-* 上传 / 下载行为透明，便于判断资源健康度
-
-### 自动化获取
-
-* 支持 RSS 订阅（适用于连载更新场景）
-* 自动解析 torrent / magnet 链接
-* 可构建持续更新的番剧获取流程
-
----
-
-## 设计思路（面向番剧场景）
-
-针对常见使用习惯进行了以下优化：
-
-* **周期性更新**：适配每周更新节奏，减少手动干预
-* **整季获取**：支持批量任务管理，降低重复操作成本
-* **资源波动**：在低活跃资源情况下保持连接与重试策略
-* **可判断性**：通过状态信息快速判断资源质量（是否值得继续等待）
-
----
-
-## 适用场景
-
-* 新番连载自动跟进
-* 番剧整季批量获取
-* 长时间挂机下载任务
-* 对资源连接状态有判断需求的用户
-
----
-
-## 使用方式
-
-```bash id="v9k2dx"
-# 克隆项目
-git clone https://github.com/INIF-FISH/AwaKurageDownloader.git
-
-# 进入目录
-cd AwaKurageDownloader
-
-# 根据项目结构进行构建或运行
-```
-
----
-
-## 性能说明
-
-下载表现主要取决于：
-
-* 资源热度（节点数量）
-* 分发网络状态（Tracker / DHT）
-* 本地网络环境
-
-一般规律：
-
-* **当季新番**：节点活跃，速度较高
-* **冷门旧番**：节点稀少，需要更长时间建立连接
-
-本工具在低活跃资源场景下会持续进行连接维护与调度优化，以提升成功率。
-
----
+- 添加 Magnet 链接和 `.torrent` 文件下载任务。
+- 查看任务进度、下载/上传速度、状态和分片信息。
+- 暂停、继续、移除任务，并设置默认保存目录。
+- 配置下载/上传限速、上传槽位、做种行为和 Tracker 列表。
+- 添加 RSS 订阅，并按服务逻辑自动匹配下载内容。
+- 启动仅监听 `127.0.0.1` 的本地 HTTP / WebSocket API，方便和脚本、面板或其他本地工具集成。
+- 提供 Windows MSI 打包流程；没有 WiX 时会回退到便携 zip 包。
 
 ## 项目状态
 
-项目仍在持续开发中，部分功能处于迭代阶段。
-欢迎通过 Issue 或 Pull Request 提供反馈或参与改进。
+当前版本是 `0.1.1`，仍处在早期开发阶段。核心结构已经拆分完成，桌面端、BT 会话、RSS 服务、本地 API 和设置管理都在独立模块中维护，但功能细节和界面文本仍会继续打磨。
 
----
+如果你只是想试用，请把它当作一个正在成长中的下载器；如果你想参与开发，欢迎从小问题、构建体验、文档和测试开始。
 
-## 贡献方向
+## 技术栈
 
-* 分发网络优化（Tracker / DHT 策略）
-* 下载调度与连接管理优化
-* 自动化订阅与任务系统扩展
-* 状态分析与可视化能力增强
+- C++20
+- Qt 6.6+
+- Qt Quick / QML
+- libtorrent
+- spdlog
+- Catch2
+- CMake + vcpkg
 
----
+## 项目结构
+
+```text
+apps/desktop/       Qt Quick 桌面应用入口和 QML 界面
+src/core/           下载任务模型、设置服务和 DownloadManager
+src/torrent/        libtorrent 会话封装、Magnet 工具和任务状态映射
+src/rss/            RSS 订阅、刷新和自动添加逻辑
+src/api/            本地 HTTP / WebSocket API
+tests/              Catch2 测试
+docs/               架构和打包说明
+packaging/windows/  Windows 安装包相关文件
+resources/          图标、海报和 Qt 资源
+```
+
+更细的模块说明可以看 [docs/architecture.md](docs/architecture.md)。
+
+## 构建准备
+
+你需要先安装：
+
+- Visual Studio 2022 或其他支持 C++20 的编译器
+- CMake 3.25+
+- vcpkg
+- Qt 6.6+ 相关依赖会通过 vcpkg 解析
+
+确保环境变量 `VCPKG_ROOT` 指向你的 vcpkg 目录，例如：
+
+```powershell
+$env:VCPKG_ROOT = "C:\dev\vcpkg"
+```
+
+## 构建
+
+Windows / MSVC：
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc
+```
+
+通用 Ninja 预设：
+
+```powershell
+cmake --preset default
+cmake --build --preset default
+```
+
+默认会构建测试。如果你只想构建应用，可以在配置时关闭：
+
+```powershell
+cmake --preset default -DAWA_BUILD_TESTS=OFF
+```
+
+## 运行测试
+
+```powershell
+ctest --preset default
+```
+
+或者直接构建后运行测试目标，具体取决于你的生成器和 IDE 配置。
+
+## 打包
+
+Windows 是当前优先支持的打包平台：
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc
+cmake --build build/windows-msvc --target package
+```
+
+安装包默认输出类似：
+
+```text
+AwaKurageDownloader-0.1.1-win64.msi
+```
+
+如果系统里没有可用的 WiX Toolset，打包流程会回退生成：
+
+```text
+AwaKurageDownloader-0.1.1-win64-portable.zip
+```
+
+更多细节见 [docs/packaging.md](docs/packaging.md)。
+
+## 本地 API
+
+应用内可以启动本地 API 服务。它默认只监听 `127.0.0.1`，HTTP 请求需要携带 Bearer Token，WebSocket 会推送下载列表快照和状态变化。
+
+这个 API 面向本机自动化场景，例如：
+
+- 写一个脚本批量添加下载任务。
+- 做一个本地状态面板。
+- 把下载器接入自己的工作流工具。
+
+具体接口仍在迭代中，使用前建议先看应用内的 “远程 API” 页面。
+
+## 数据与卸载
+
+卸载应用不会主动删除用户下载内容和配置数据。任务持久化和设置由 `SettingsService` 管理，后续如果引入 SQLite 迁移，也会尽量保持数据策略清晰、可预期。
+
+## 贡献
+
+欢迎提交 Issue 或 Pull Request。比较适合入手的方向包括：
+
+- 修复界面文案、交互和小的可用性问题。
+- 补充构建、打包和运行文档。
+- 增加核心服务的测试覆盖。
+- 改进 Tracker、DHT、连接调度和状态展示。
+- 完善 RSS 和本地 API 的真实使用场景。
+
+提交改动前建议至少运行一次相关测试，确保没有引入明显回归。
 
 ## License
 
-详见仓库 License 文件。
-
----
-
-**AwaKurageDownloader**
-为稳定获取番剧资源而设计的下载工具
+本项目使用仓库中的 [LICENSE.txt](LICENSE.txt) 所声明的许可证。
