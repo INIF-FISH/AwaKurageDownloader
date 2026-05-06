@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
     installStartupLogger();
     QGuiApplication::setApplicationName(QStringLiteral("AwaKurageDownloader"));
     QGuiApplication::setOrganizationName(QStringLiteral("AwaKurage"));
-    QGuiApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QGuiApplication::setApplicationVersion(QStringLiteral("0.1.1"));
 
     const QString packagedLogoPngPath = QGuiApplication::applicationDirPath() + QStringLiteral("/resources/LOGO.png");
     const QString logoPath = QFileInfo::exists(packagedLogoPngPath)
