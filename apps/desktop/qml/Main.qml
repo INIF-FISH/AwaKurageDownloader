@@ -25,6 +25,8 @@ ApplicationWindow {
     property int completedCount: 0
     property int downloadingUnseenCount: 0
     property int completedUnseenCount: 0
+    property int selectedChokingAlgorithm: downloadManager.chokingAlgorithm
+    property int selectedSeedChokingAlgorithm: downloadManager.seedChokingAlgorithm
     property var downloadTabSnapshot: ({})
     readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
     readonly property int selectedState: selectedDownload.state === undefined ? -1 : selectedDownload.state
@@ -1250,14 +1252,16 @@ ApplicationWindow {
                                         id: chokingAlgorithmBox
                                         Layout.fillWidth: true
                                         model: ["互惠固定槽位", "互惠速率自适应"]
-                                        currentIndex: downloadManager.chokingAlgorithm
+                                        currentIndex: selectedChokingAlgorithm
+                                        onCurrentIndexChanged: selectedChokingAlgorithm = currentIndex
                                     }
                                     LabelText { text: "做种时策略" }
                                     ComboBox {
                                         id: seedChokingAlgorithmBox
                                         Layout.fillWidth: true
                                         model: ["轮询", "最快上传优先", "反吸血博弈"]
-                                        currentIndex: downloadManager.seedChokingAlgorithm
+                                        currentIndex: selectedSeedChokingAlgorithm
+                                        onCurrentIndexChanged: selectedSeedChokingAlgorithm = currentIndex
                                     }
                                     LabelText { text: "完成后做种" }
                                     Switch {
