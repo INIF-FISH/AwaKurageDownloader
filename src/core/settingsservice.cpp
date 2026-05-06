@@ -187,4 +187,22 @@ QString SettingsService::defaultTrackerUrlsText() const
     return defaultTrackers();
 }
 
+QString SettingsService::language() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    const QString language = settings.value(QStringLiteral("ui/language"), QStringLiteral("zh_CN")).toString();
+    return language == QStringLiteral("en_US") || language == QStringLiteral("ja_JP")
+        ? language
+        : QStringLiteral("zh_CN");
+}
+
+void SettingsService::setLanguage(const QString& language)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("ui/language"),
+        language == QStringLiteral("en_US") || language == QStringLiteral("ja_JP")
+            ? language
+            : QStringLiteral("zh_CN"));
+}
+
 } // namespace awa::core

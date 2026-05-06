@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import QtQuick.Window
+import AwaKurageDownloader 1.0
 
 ApplicationWindow {
     id: window
@@ -33,7 +34,12 @@ ApplicationWindow {
     readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6
     readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
-    readonly property var pageTitles: ["下载任务", "RSS 订阅", "远程 API", "设置"]
+    readonly property var pageTitles: [
+        I18n.tr("下载任务", "Downloads"),
+        I18n.tr("RSS 订阅", "RSS"),
+        I18n.tr("远程 API", "Remote API"),
+        I18n.tr("设置", "Settings")
+    ]
 
     readonly property color panelDivider: "#d8dee6"
 
@@ -85,8 +91,26 @@ ApplicationWindow {
     }
 
     function showToast(message) {
-        toastText = message
+        toastText = I18n.dynamic(message)
         toastPopup.open()
+    }
+
+    function trackerSummary(workingCount, trackerCount) {
+        if (I18n.japanese) {
+            return (workingCount || 0) + " 稼働 / " + (trackerCount || 0) + " 合計"
+        }
+        return I18n.english
+            ? ((workingCount || 0) + " working / " + (trackerCount || 0) + " total")
+            : ((workingCount || 0) + " 可用 / " + (trackerCount || 0) + " 总数")
+    }
+
+    function piecesSummary(completedPieces, pieceCount) {
+        if (I18n.japanese) {
+            return (completedPieces || 0) + " / " + (pieceCount || 0) + " ピース"
+        }
+        return I18n.english
+            ? ((completedPieces || 0) + " / " + (pieceCount || 0) + " pieces")
+            : ((completedPieces || 0) + " / " + (pieceCount || 0) + " 个分块")
     }
 
     function isCompletedState(state) {
@@ -270,18 +294,21 @@ ApplicationWindow {
     onCurrentPageChanged: markCurrentDownloadTabSeen()
     onDownloadSectionTabChanged: markCurrentDownloadTabSeen()
 
-    Component.onCompleted: refreshDownloadTabBadges(true)
+    Component.onCompleted: {
+        I18n.language = settingsService.language()
+        refreshDownloadTabBadges(true)
+    }
 
     FileDialog {
         id: torrentDialog
-        title: "选择种子文件"
+        title: I18n.tr("选择种子文件", "Select Torrent File")
         nameFilters: ["Torrent files (*.torrent)"]
         onAccepted: downloadManager.addTorrentFile(selectedFile.toString().replace("file:///", ""))
     }
 
     FolderDialog {
         id: folderDialog
-        title: "选择默认保存目录"
+        title: I18n.tr("选择默认保存目录", "Select Default Save Folder")
         onAccepted: {
             const path = selectedFolder.toString().replace("file:///", "")
             downloadManager.defaultSavePath = path
@@ -345,13 +372,13 @@ ApplicationWindow {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: "添加磁力链接"; color: AwaTheme.ink; font.pixelSize: 20; font.weight: Font.DemiBold }
-                        Text { text: "粘贴 magnet URI，并确认保存目录"; color: AwaTheme.muted; font.pixelSize: 12 }
+                        Text { text: I18n.tr("添加磁力链接", "Add Magnet Link"); color: AwaTheme.ink; font.pixelSize: 20; font.weight: Font.DemiBold }
+                        Text { text: I18n.tr("粘贴 magnet URI，并确认保存目录", "Paste a magnet URI and confirm the save folder"); color: AwaTheme.muted; font.pixelSize: 12 }
                     }
                     AcidToolButton {
                         text: "x"
                         ToolTip.visible: hovered
-                        ToolTip.text: "关闭"
+                        ToolTip.text: I18n.tr("关闭", "Close")
                         onClicked: magnetDialog.close()
                     }
                 }
@@ -378,7 +405,7 @@ ApplicationWindow {
                     id: savePathInput
                     Layout.fillWidth: true
                     text: downloadManager.defaultSavePath
-                    placeholderText: "保存路径"
+                    placeholderText: I18n.tr("保存路径", "Save path")
                     color: AwaTheme.ink
                     placeholderTextColor: AwaTheme.muted
                     selectedTextColor: "white"
@@ -389,8 +416,8 @@ ApplicationWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     Item { Layout.fillWidth: true }
-                    AcidButton { text: "取消"; onClicked: magnetDialog.close() }
-                    AcidButton { text: "添加任务"; tone: "primary"; onClicked: addMagnetFromDialog() }
+                    AcidButton { text: I18n.tr("取消", "Cancel"); onClicked: magnetDialog.close() }
+                    AcidButton { text: I18n.tr("添加任务", "Add Task"); tone: "primary"; onClicked: addMagnetFromDialog() }
                 }
             }
         }
@@ -498,7 +525,7 @@ ApplicationWindow {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: "BT下载器"
+                        text: I18n.tr("BT下载器", "BT Downloader")
                         color: AwaTheme.muted
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
@@ -509,10 +536,10 @@ ApplicationWindow {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    SidebarButton { Layout.fillWidth: true; text: "下载任务"; iconText: "↓"; active: currentPage === 0; onClicked: currentPage = 0 }
-                    SidebarButton { Layout.fillWidth: true; text: "RSS 订阅"; iconText: "≋"; active: currentPage === 1; onClicked: currentPage = 1 }
-                    SidebarButton { Layout.fillWidth: true; text: "远程 API"; iconText: "{}"; active: currentPage === 2; onClicked: currentPage = 2 }
-                    SidebarButton { Layout.fillWidth: true; text: "设置"; iconText: "⚙"; active: currentPage === 3; onClicked: currentPage = 3 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("下载任务", "Downloads"); iconText: "↓"; active: currentPage === 0; onClicked: currentPage = 0 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("RSS 订阅", "RSS"); iconText: "≋"; active: currentPage === 1; onClicked: currentPage = 1 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("远程 API", "Remote API"); iconText: "{}"; active: currentPage === 2; onClicked: currentPage = 2 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("设置", "Settings"); iconText: "⚙"; active: currentPage === 3; onClicked: currentPage = 3 }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -537,7 +564,7 @@ ApplicationWindow {
                         anchors.fill: parent
                         anchors.margins: 14
                         spacing: 7
-                        Text { text: "本地 API"; color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                        Text { text: I18n.tr("本地 API", "Local API"); color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
                         Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: AwaTheme.inkSoft; font.pixelSize: 12; elide: Text.ElideRight }
                         Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: AwaTheme.muted; font.pixelSize: 11; elide: Text.ElideRight }
                     }
@@ -599,7 +626,7 @@ ApplicationWindow {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: downloadTabLabel("下载中", downloadingCount, downloadingUnseenCount)
+                                        text: downloadTabLabel(I18n.tr("下载中", "Active"), downloadingCount, downloadingUnseenCount)
                                         color: downloadSectionTab === 0 ? AwaTheme.ink : AwaTheme.inkSoft
                                         font.pixelSize: 13
                                         font.weight: downloadSectionTab === 0 ? Font.DemiBold : Font.Medium
@@ -627,7 +654,7 @@ ApplicationWindow {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: downloadTabLabel("已完成", completedCount, completedUnseenCount)
+                                        text: downloadTabLabel(I18n.tr("已完成", "Completed"), completedCount, completedUnseenCount)
                                         color: downloadSectionTab === 1 ? AwaTheme.ink : AwaTheme.inkSoft
                                         font.pixelSize: 13
                                         font.weight: downloadSectionTab === 1 ? Font.DemiBold : Font.Medium
@@ -655,12 +682,12 @@ ApplicationWindow {
                         spacing: 12
 
                         AcidButton {
-                            text: "添加磁力"
+                            text: I18n.tr("添加磁力", "Add Magnet")
                             tone: "primary"
                             onClicked: magnetDialog.open()
                         }
                         AcidButton {
-                            text: "选择种子"
+                            text: I18n.tr("选择种子", "Open Torrent")
                             onClicked: torrentDialog.open()
                         }
                     }
@@ -737,13 +764,13 @@ ApplicationWindow {
                                 anchors.fill: parent
                                 anchors.margins: 24
                                 spacing: 14
-                                Text { text: downloadSectionTab === 0 ? "暂无下载中的任务" : "暂无已完成的任务"; color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
-                                Text { Layout.fillWidth: true; text: downloadSectionTab === 0 ? "拖入 .torrent 文件，或添加磁力链接" : "完成后的任务会出现在这里"; color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                Text { text: downloadSectionTab === 0 ? I18n.tr("暂无下载中的任务", "No Active Tasks") : I18n.tr("暂无已完成的任务", "No Completed Tasks"); color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
+                                Text { Layout.fillWidth: true; text: downloadSectionTab === 0 ? I18n.tr("拖入 .torrent 文件，或添加磁力链接", "Drop a .torrent file here, or add a magnet link") : I18n.tr("完成后的任务会出现在这里", "Finished tasks will appear here"); color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                 RowLayout {
                                     visible: downloadSectionTab === 0
                                     Layout.alignment: Qt.AlignHCenter
-                                    AcidButton { text: "添加磁力"; tone: "primary"; onClicked: magnetDialog.open() }
-                                    AcidButton { text: "选择种子"; onClicked: torrentDialog.open() }
+                                    AcidButton { text: I18n.tr("添加磁力", "Add Magnet"); tone: "primary"; onClicked: magnetDialog.open() }
+                                    AcidButton { text: I18n.tr("选择种子", "Open Torrent"); onClicked: torrentDialog.open() }
                                 }
                             }
                         }
@@ -781,7 +808,7 @@ ApplicationWindow {
                             Text {
                                 Layout.fillWidth: true
                                 Layout.maximumWidth: parent.width
-                                text: selectedDownload.name || "任务详情"
+                                text: selectedDownload.name || I18n.tr("任务详情", "Task Details")
                                 color: AwaTheme.ink
                                 font.pixelSize: 19
                                 font.weight: Font.DemiBold
@@ -814,27 +841,27 @@ ApplicationWindow {
                             rowSpacing: 10
                             columnSpacing: 16
                             clip: true
-                            LabelText { text: "状态" }
-                            Text { text: selectedDownload.stateText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "进展" }
-                            Text { text: selectedDownload.statusText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "连接" }
-                            Text { text: selectedDownload.connectionHealthText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "Peers / Seeds" }
+                            LabelText { text: I18n.tr("状态", "State") }
+                            Text { text: selectedDownload.stateText ? I18n.dynamic(selectedDownload.stateText) : "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("进展", "Progress") }
+                            Text { text: selectedDownload.statusText ? I18n.dynamic(selectedDownload.statusText) : "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("连接", "Connection") }
+                            Text { text: selectedDownload.connectionHealthText ? I18n.dynamic(selectedDownload.connectionHealthText) : "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("Peers / Seeds", "Peers / Seeds") }
                             Text { text: (selectedDownload.peerCount || 0) + " / " + (selectedDownload.seedCount || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "Tracker" }
-                            Text { text: (selectedDownload.workingTrackerCount || 0) + " working / " + (selectedDownload.trackerCount || 0) + " total"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "DHT" }
-                            Text { text: selectedDownload.dhtStatusText || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "保存" }
+                            LabelText { text: I18n.tr("Tracker", "Tracker") }
+                            Text { text: trackerSummary(selectedDownload.workingTrackerCount || 0, selectedDownload.trackerCount || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("DHT", "DHT") }
+                            Text { text: selectedDownload.dhtStatusText ? I18n.dynamic(selectedDownload.dhtStatusText) : "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("保存", "Save Path") }
                             Text { text: selectedDownload.savePath || "-"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "大小" }
+                            LabelText { text: I18n.tr("大小", "Size") }
                             Text { text: formatBytes(selectedDownload.downloadedBytes || 0) + " / " + formatBytes(selectedDownload.totalBytes || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "分块" }
-                            Text { text: (selectedDownload.completedPieces || 0) + " / " + (selectedDownload.pieceCount || 0) + " pieces"; color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
-                            LabelText { text: "下载" }
+                            LabelText { text: I18n.tr("分块", "Pieces") }
+                            Text { text: piecesSummary(selectedDownload.completedPieces || 0, selectedDownload.pieceCount || 0); color: AwaTheme.ink; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true; Layout.maximumWidth: 238 }
+                            LabelText { text: I18n.tr("下载", "Download") }
                             Text { text: Math.round((selectedDownload.downloadRate || 0) / 1024) + " KiB/s"; color: AwaTheme.primary; font.pixelSize: 12; font.weight: Font.DemiBold }
-                            LabelText { text: "上传" }
+                            LabelText { text: I18n.tr("上传", "Upload") }
                             Text { text: Math.round((selectedDownload.uploadRate || 0) / 1024) + " KiB/s"; color: AwaTheme.ink; font.pixelSize: 12 }
                         }
 
@@ -859,7 +886,7 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "分块跟踪"
+                                        text: I18n.tr("分块跟踪", "Piece Map")
                                         color: AwaTheme.ink
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
@@ -955,7 +982,7 @@ ApplicationWindow {
                                     Text {
                                         anchors.centerIn: parent
                                         visible: detailPieceBar.fullPieceMap.length === 0
-                                        text: "等待分块数据"
+                                        text: I18n.tr("等待分块数据", "Waiting for piece data")
                                         color: AwaTheme.muted
                                         font.pixelSize: 11
                                     }
@@ -964,11 +991,11 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     spacing: 10
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#a9eec1"; border.color: "#6fcf8d" }
-                                    Text { text: "已完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Text { text: I18n.tr("已完成", "Done"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#fff2a8"; border.color: "#e5c84c" }
-                                    Text { text: "下载中"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Text { text: I18n.tr("下载中", "Downloading"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#dceeff"; border.color: AwaTheme.border }
-                                    Text { text: "未完成"; color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Text { text: I18n.tr("未完成", "Missing"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Item { Layout.fillWidth: true }
                                 }
                             }
@@ -977,13 +1004,13 @@ ApplicationWindow {
                         RowLayout {
                             Layout.fillWidth: true
                             AcidButton {
-                                text: "暂停"
+                                text: I18n.tr("暂停", "Pause")
                                 Layout.fillWidth: true
                                 enabled: selectedCanPause
                                 onClicked: downloadManager.pause(selectedDownloadId)
                             }
                             AcidButton {
-                                text: "继续"
+                                text: I18n.tr("继续", "Resume")
                                 tone: "primary"
                                 Layout.fillWidth: true
                                 enabled: selectedCanResume
@@ -992,7 +1019,7 @@ ApplicationWindow {
                         }
                         AcidButton {
                             Layout.fillWidth: true
-                            text: "移除任务"
+                            text: I18n.tr("移除任务", "Remove Task")
                             tone: "danger"
                             enabled: selectedDownloadId.length > 0
                             onClicked: downloadManager.remove(selectedDownloadId, false)
@@ -1000,10 +1027,10 @@ ApplicationWindow {
 
                         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
 
-                        Text { Layout.fillWidth: true; text: "RSS 自动下载默认关闭"; color: AwaTheme.muted; font.pixelSize: 12; elide: Text.ElideRight }
+                        Text { Layout.fillWidth: true; text: I18n.tr("RSS 自动下载默认关闭", "RSS auto-download is off by default"); color: AwaTheme.muted; font.pixelSize: 12; elide: Text.ElideRight }
                         Switch {
                             Layout.fillWidth: true
-                            text: "启用 RSS 自动匹配"
+                            text: I18n.tr("启用 RSS 自动匹配", "Enable RSS Auto Match")
                             checked: rssService.autoDownloadEnabled()
                             onToggled: rssService.setAutoDownloadEnabled(checked)
                         }
@@ -1022,7 +1049,7 @@ ApplicationWindow {
                         z: 2
                         text: "X"
                         ToolTip.visible: hovered
-                        ToolTip.text: "关闭详情"
+                        ToolTip.text: I18n.tr("关闭详情", "Close Details")
                         onClicked: {
                             selectedDownloadId = ""
                             selectedDownload = ({})
@@ -1052,20 +1079,20 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.margins: 20
                             spacing: 13
-                            SectionTitle { text: "添加 RSS 源" }
+                            SectionTitle { text: I18n.tr("添加 RSS 源", "Add RSS Feed") }
                             Text {
                                 Layout.fillWidth: true
-                                text: "已内置默认源：FOSS Torrents、Academic Torrents"
+                                text: I18n.tr("已内置默认源：FOSS Torrents、Academic Torrents", "Built-in defaults: FOSS Torrents, Academic Torrents")
                                 color: AwaTheme.muted
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
                             }
-                            TextField { id: rssTitleInput; Layout.fillWidth: true; placeholderText: "订阅名称"; color: AwaTheme.ink; placeholderTextColor: AwaTheme.muted; background: FieldBackground {} }
+                            TextField { id: rssTitleInput; Layout.fillWidth: true; placeholderText: I18n.tr("订阅名称", "Feed name"); color: AwaTheme.ink; placeholderTextColor: AwaTheme.muted; background: FieldBackground {} }
                             TextField { id: rssUrlInput; Layout.fillWidth: true; placeholderText: "https://example.com/feed.xml"; color: AwaTheme.ink; placeholderTextColor: AwaTheme.muted; background: FieldBackground {} }
                             RowLayout {
                                 Layout.fillWidth: true
                                 AcidButton {
-                                    text: "添加订阅"
+                                    text: I18n.tr("添加订阅", "Add Feed")
                                     tone: "primary"
                                     onClicked: {
                                         rssService.addSubscription(rssTitleInput.text, rssUrlInput.text)
@@ -1073,9 +1100,9 @@ ApplicationWindow {
                                         rssUrlInput.clear()
                                     }
                                 }
-                                AcidButton { text: "刷新全部"; onClicked: rssService.refreshAll() }
+                                AcidButton { text: I18n.tr("刷新全部", "Refresh All"); onClicked: rssService.refreshAll() }
                                 Switch {
-                                    text: "自动匹配"
+                                    text: I18n.tr("自动匹配", "Auto Match")
                                     checked: rssService.autoDownloadEnabled()
                                     onToggled: rssService.setAutoDownloadEnabled(checked)
                                 }
@@ -1090,9 +1117,9 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.margins: 20
                             spacing: 10
-                            SectionTitle { text: "RSS 状态" }
-                            Text { Layout.fillWidth: true; text: "订阅数量：" + rssService.subscriptionCount; color: AwaTheme.inkSoft; font.pixelSize: 13 }
-                            Text { Layout.fillWidth: true; text: rssService.lastStatus.length > 0 ? rssService.lastStatus : "尚未刷新"; color: AwaTheme.muted; font.pixelSize: 13; elide: Text.ElideRight }
+                            SectionTitle { text: I18n.tr("RSS 状态", "RSS Status") }
+                            Text { Layout.fillWidth: true; text: I18n.tr("订阅数量：", "Subscriptions: ") + rssService.subscriptionCount; color: AwaTheme.inkSoft; font.pixelSize: 13 }
+                            Text { Layout.fillWidth: true; text: rssService.lastStatus.length > 0 ? I18n.dynamic(rssService.lastStatus) : I18n.tr("尚未刷新", "Not refreshed yet"); color: AwaTheme.muted; font.pixelSize: 13; elide: Text.ElideRight }
                         }
                     }
 
@@ -1122,13 +1149,13 @@ ApplicationWindow {
                             rowSpacing: 13
                             columnSpacing: 18
 
-                            LabelText { text: "监听状态" }
-                            Text { text: apiServer.listening ? "运行中" : "已停止"; color: apiServer.listening ? AwaTheme.success : AwaTheme.danger; font.pixelSize: 13; font.weight: Font.DemiBold }
-                            LabelText { text: "HTTP" }
+                            LabelText { text: I18n.tr("监听状态", "Listening") }
+                            Text { text: apiServer.listening ? I18n.tr("运行中", "Running") : I18n.tr("已停止", "Stopped"); color: apiServer.listening ? AwaTheme.success : AwaTheme.danger; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            LabelText { text: I18n.tr("HTTP", "HTTP") }
                             Text { Layout.fillWidth: true; text: "http://127.0.0.1:" + apiServer.port + "/api/v1/downloads"; color: AwaTheme.ink; font.pixelSize: 13; elide: Text.ElideRight }
-                            LabelText { text: "WebSocket" }
+                            LabelText { text: I18n.tr("WebSocket", "WebSocket") }
                             Text { Layout.fillWidth: true; text: "ws://127.0.0.1:" + (apiServer.port + 1) + "/api/v1/events"; color: AwaTheme.ink; font.pixelSize: 13; elide: Text.ElideRight }
-                            LabelText { text: "Token" }
+                            LabelText { text: I18n.tr("Token", "Token") }
                             TextArea {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 76
@@ -1142,15 +1169,15 @@ ApplicationWindow {
                             }
                             Item {}
                             RowLayout {
-                                AcidButton { text: "启动"; tone: "primary"; enabled: !apiServer.listening; onClicked: apiServer.start(settingsService.apiPort()) }
-                                AcidButton { text: "停止"; tone: "danger"; enabled: apiServer.listening; onClicked: apiServer.stop() }
+                                AcidButton { text: I18n.tr("启动", "Start"); tone: "primary"; enabled: !apiServer.listening; onClicked: apiServer.start(settingsService.apiPort()) }
+                                AcidButton { text: I18n.tr("停止", "Stop"); tone: "danger"; enabled: apiServer.listening; onClicked: apiServer.stop() }
                             }
                         }
                     }
 
                     Text {
                         Layout.fillWidth: true
-                        text: "请求需携带 Authorization: Bearer <Token>。API 默认只监听 127.0.0.1。"
+                        text: I18n.tr("请求需携带 Authorization: Bearer <Token>。API 默认只监听 127.0.0.1。", "Requests must include Authorization: Bearer <Token>. The API listens on 127.0.0.1 by default.")
                         color: AwaTheme.muted
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
@@ -1187,26 +1214,60 @@ ApplicationWindow {
                                 anchors.fill: parent
                                 anchors.margins: 20
                                 spacing: 14
-                                SectionTitle { text: "下载设置" }
+                                SectionTitle { text: I18n.tr("下载设置", "Download Settings") }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    LabelText {
+                                        Layout.preferredWidth: 96
+                                        text: I18n.tr("界面语言", "Language")
+                                    }
+                                    ComboBox {
+                                        id: languageBox
+                                        Layout.fillWidth: true
+                                        textRole: "text"
+                                        valueRole: "value"
+                                        model: [
+                                            { "text": I18n.tr("简体中文", "Simplified Chinese"), "value": "zh_CN" },
+                                            { "text": I18n.tr("英语", "English"), "value": "en_US" },
+                                            { "text": I18n.tr("日语", "Japanese"), "value": "ja_JP" }
+                                        ]
+                                        Component.onCompleted: {
+                                            const savedLanguage = settingsService.language()
+                                            for (let i = 0; i < model.length; ++i) {
+                                                if (model[i].value === savedLanguage) {
+                                                    currentIndex = i
+                                                    return
+                                                }
+                                            }
+                                            currentIndex = 0
+                                        }
+                                        onActivated: function(index) {
+                                            const nextLanguage = currentValue
+                                            I18n.language = nextLanguage
+                                            settingsService.setLanguage(nextLanguage)
+                                            showToast(I18n.tr("语言已切换", "Language changed"))
+                                        }
+                                    }
+                                }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     TextField {
                                         id: settingsPathInput
                                         Layout.fillWidth: true
                                         text: downloadManager.defaultSavePath
-                                        placeholderText: "默认保存目录"
+                                        placeholderText: I18n.tr("默认保存目录", "Default save folder")
                                         color: AwaTheme.ink
                                         placeholderTextColor: AwaTheme.muted
                                         background: FieldBackground {}
                                     }
-                                    AcidButton { text: "选择"; onClicked: folderDialog.open() }
+                                    AcidButton { text: I18n.tr("选择", "Browse"); onClicked: folderDialog.open() }
                                     AcidButton {
-                                        text: "保存"
+                                        text: I18n.tr("保存", "Save")
                                         tone: "primary"
                                         onClicked: {
                                             downloadManager.defaultSavePath = settingsPathInput.text
                                             settingsService.setDownloadDirectory(settingsPathInput.text)
-                                            showToast("设置已保存")
+                                            showToast(I18n.tr("设置已保存", "Settings saved"))
                                         }
                                     }
                                 }
@@ -1216,7 +1277,7 @@ ApplicationWindow {
                                         id: dlLimitInput
                                         Layout.fillWidth: true
                                         text: downloadManager.downloadLimitKiB.toString()
-                                        placeholderText: "下载限速 KiB/s，0 表示不限"
+                                        placeholderText: I18n.tr("下载限速 KiB/s，0 表示不限", "Download limit KiB/s, 0 for unlimited")
                                         inputMethodHints: Qt.ImhDigitsOnly
                                         color: AwaTheme.ink
                                         placeholderTextColor: AwaTheme.muted
@@ -1226,14 +1287,14 @@ ApplicationWindow {
                                         id: ulLimitInput
                                         Layout.fillWidth: true
                                         text: downloadManager.uploadLimitKiB.toString()
-                                        placeholderText: "上传限速 KiB/s，0 表示不限"
+                                        placeholderText: I18n.tr("上传限速 KiB/s，0 表示不限", "Upload limit KiB/s, 0 for unlimited")
                                         inputMethodHints: Qt.ImhDigitsOnly
                                         color: AwaTheme.ink
                                         placeholderTextColor: AwaTheme.muted
                                         background: FieldBackground {}
                                     }
                                     AcidButton {
-                                        text: "应用限速"
+                                        text: I18n.tr("应用限速", "Apply Limits")
                                         tone: "primary"
                                         onClicked: {
                                             const dlLimit = positiveInt(dlLimitInput.text, 0)
@@ -1245,42 +1306,42 @@ ApplicationWindow {
                                     }
                                 }
                                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
-                                Text { text: "块选择与上传博弈"; color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                Text { text: I18n.tr("块选择与上传博弈", "Piece Selection and Choking"); color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
                                 GridLayout {
                                     Layout.fillWidth: true
                                     columns: 2
                                     rowSpacing: 10
                                     columnSpacing: 14
-                                    LabelText { text: "块选择策略" }
-                                    Text { Layout.fillWidth: true; text: "稀有块优先"; color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                    LabelText { text: "上传博弈策略" }
+                                    LabelText { text: I18n.tr("块选择策略", "Piece Strategy") }
+                                    Text { Layout.fillWidth: true; text: I18n.tr("稀有块优先", "Rarest First"); color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                    LabelText { text: I18n.tr("上传博弈策略", "Choking Strategy") }
                                     ComboBox {
                                         id: chokingAlgorithmBox
                                         Layout.fillWidth: true
-                                        model: ["互惠固定槽位", "互惠速率自适应"]
+                                        model: [I18n.tr("互惠固定槽位", "Fixed Slots"), I18n.tr("互惠速率自适应", "Rate Based")]
                                         currentIndex: downloadManager.chokingAlgorithm
                                     }
-                                    LabelText { text: "做种时策略" }
+                                    LabelText { text: I18n.tr("做种时策略", "Seeding Strategy") }
                                     ComboBox {
                                         id: seedChokingAlgorithmBox
                                         Layout.fillWidth: true
-                                        model: ["轮询", "最快上传优先", "反吸血博弈"]
+                                        model: [I18n.tr("轮询", "Round Robin"), I18n.tr("最快上传优先", "Fastest Upload"), I18n.tr("反吸血博弈", "Anti-leech")]
                                         currentIndex: downloadManager.seedChokingAlgorithm
                                     }
-                                    LabelText { text: "完成后做种" }
+                                    LabelText { text: I18n.tr("完成后做种", "Seed After Complete") }
                                     Switch {
                                         id: seedOnCompletionSwitch
                                         Layout.fillWidth: true
                                         checked: downloadManager.seedOnCompletionEnabled
-                                        text: checked ? "继续做种" : "完成即停止"
+                                        text: checked ? I18n.tr("继续做种", "Keep Seeding") : I18n.tr("完成即停止", "Stop When Done")
                                     }
-                                    LabelText { text: "上传槽位" }
+                                    LabelText { text: I18n.tr("上传槽位", "Upload Slots") }
                                     SpinBox { id: uploadSlotsSpin; Layout.fillWidth: true; from: 1; to: 200; value: downloadManager.uploadSlots }
-                                    LabelText { text: "乐观解阻塞槽位" }
+                                    LabelText { text: I18n.tr("乐观解阻塞槽位", "Optimistic Slots") }
                                     SpinBox { id: optimisticSlotsSpin; Layout.fillWidth: true; from: 0; to: 10; value: downloadManager.optimisticSlots }
                                     Item {}
                                     AcidButton {
-                                        text: "应用策略"
+                                        text: I18n.tr("应用策略", "Apply Strategy")
                                         tone: "primary"
                                         onClicked: {
                                             downloadManager.setChokingStrategy(chokingAlgorithmBox.currentIndex, seedChokingAlgorithmBox.currentIndex, uploadSlotsSpin.value, optimisticSlotsSpin.value)
@@ -1294,7 +1355,7 @@ ApplicationWindow {
                                     }
                                 }
                                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
-                                Text { text: "Trackers"; color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                Text { text: I18n.tr("Trackers", "Trackers"); color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
                                 ScrollView {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 188
@@ -1322,23 +1383,23 @@ ApplicationWindow {
                                     Layout.fillWidth: true
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "One tracker per line. All trackers are announced in parallel."
+                                        text: I18n.tr("每行一个 Tracker。所有 Tracker 会并行 announce。", "One tracker per line. All trackers are announced in parallel.")
                                         color: AwaTheme.muted
                                         font.pixelSize: 12
                                         elide: Text.ElideRight
                                     }
                                     AcidButton {
-                                        text: "Defaults"
+                                        text: I18n.tr("默认", "Defaults")
                                         onClicked: trackerUrlsInput.text = settingsService.defaultTrackerUrlsText()
                                     }
                                     AcidButton {
-                                        text: "Apply"
+                                        text: I18n.tr("应用", "Apply")
                                         tone: "primary"
                                         onClicked: {
                                             downloadManager.trackerUrlsText = trackerUrlsInput.text
                                             settingsService.setTrackerUrlsText(downloadManager.trackerUrlsText)
                                             trackerUrlsInput.text = downloadManager.trackerUrlsText
-                                            showToast("Trackers saved")
+                                            showToast(I18n.tr("Trackers 已保存", "Trackers saved"))
                                         }
                                     }
                                 }
@@ -1349,7 +1410,7 @@ ApplicationWindow {
                                         id: apiPortInput
                                         Layout.fillWidth: true
                                         text: settingsService.apiPort().toString()
-                                        placeholderText: "API 端口"
+                                        placeholderText: I18n.tr("API 端口", "API port")
                                         inputMethodHints: Qt.ImhDigitsOnly
                                         color: AwaTheme.ink
                                         placeholderTextColor: AwaTheme.muted
@@ -1357,21 +1418,21 @@ ApplicationWindow {
                                     }
                                     Switch {
                                         id: apiAutoStartSwitch
-                                        text: "启动本地 API"
+                                        text: I18n.tr("启动本地 API", "Start Local API")
                                         checked: settingsService.startApiAutomatically()
                                     }
                                     AcidButton {
-                                        text: "保存 API"
+                                        text: I18n.tr("保存 API", "Save API")
                                         tone: "primary"
                                         onClicked: {
                                             settingsService.setApiPort(positiveInt(apiPortInput.text, 18777))
                                             settingsService.setStartApiAutomatically(apiAutoStartSwitch.checked)
-                                            showToast("API 设置已保存，重启后生效")
+                                            showToast(I18n.tr("API 设置已保存，重启后生效", "API settings saved; restart to apply"))
                                         }
                                     }
                                 }
                                 Switch {
-                                    text: "启动 RSS 自动匹配"
+                                    text: I18n.tr("启动 RSS 自动匹配", "Start RSS Auto Match")
                                     checked: settingsService.startRssAutomatically()
                                     onToggled: {
                                         settingsService.setStartRssAutomatically(checked)

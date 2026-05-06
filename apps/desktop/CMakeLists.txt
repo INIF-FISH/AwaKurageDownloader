@@ -15,11 +15,16 @@ set_source_files_properties(qml/AwaTheme.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
+set_source_files_properties(qml/I18n.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(AwaKurageDownloader
     URI AwaKurageDownloader
     VERSION 1.0
     QML_FILES
         qml/AwaTheme.qml
+        qml/I18n.qml
         qml/Main.qml
         qml/DownloadRow.qml
         qml/SidebarButton.qml

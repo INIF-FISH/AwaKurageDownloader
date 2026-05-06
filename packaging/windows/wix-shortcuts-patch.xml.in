@@ -1,8 +1,8 @@
 <CPackWiXPatch>
   <CPackWiXFragment Id="#PRODUCTFEATURE">
     <Feature Id="AwaDesktopShortcutFeature"
-             Title="创建桌面图标"
-             Description="Create a desktop shortcut for AwaKurageDownloader."
+             Title="@AWA_WIX_SHORTCUT_FEATURE_TITLE@"
+             Description="@AWA_WIX_SHORTCUT_FEATURE_DESCRIPTION@"
              Level="1"
              Absent="allow">
       <ComponentRef Id="AwaDesktopShortcutComponent"/>

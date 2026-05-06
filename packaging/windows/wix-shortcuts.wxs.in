@@ -19,7 +19,7 @@
       <Component Id="AwaDesktopShortcutComponent" Guid="2A358CE8-2343-4C68-B37B-E95B2481D838">
         <Shortcut Id="AwaDesktopShortcut"
                   Name="AwaKurageDownloader"
-                  Description="Launch AwaKurageDownloader"
+                  Description="@AWA_WIX_SHORTCUT_DESCRIPTION@"
                   Target="[CM_DP_bin]AwaKurageDownloader.exe"
                   Icon="AwaShortcutIcon.ico"
                   IconIndex="0"
