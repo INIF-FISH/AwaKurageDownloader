@@ -28,6 +28,14 @@ public:
         BlockSizeRole,
         PieceMapRole,
         RatioRole,
+        PeerCountRole,
+        SeedCountRole,
+        ConnectionCountRole,
+        TrackerCountRole,
+        WorkingTrackerCountRole,
+        FailedTrackerCountRole,
+        DhtStatusTextRole,
+        ConnectionHealthTextRole,
         StatusTextRole,
         ErrorTextRole
     };

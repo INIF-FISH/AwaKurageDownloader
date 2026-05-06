@@ -36,6 +36,8 @@ public:
     Q_INVOKABLE QString trackerUrlsText() const;
     Q_INVOKABLE void setTrackerUrlsText(const QString& text);
     Q_INVOKABLE QString defaultTrackerUrlsText() const;
+    Q_INVOKABLE QString language() const;
+    Q_INVOKABLE void setLanguage(const QString& language);
 
 private:
     QString m_settingsPath;

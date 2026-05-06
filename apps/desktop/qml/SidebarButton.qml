@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import AwaKurageDownloader 1.0
 
 Button {
     id: control

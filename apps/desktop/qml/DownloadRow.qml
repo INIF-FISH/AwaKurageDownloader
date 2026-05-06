@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import AwaKurageDownloader 1.0
 
 Rectangle {
     id: rowRoot
@@ -21,8 +22,8 @@ Rectangle {
     readonly property string savePath: itemData.savePath || ""
     property int rowIndex: -1
     property bool selected: false
-    readonly property string displayName: taskName.length > 0 ? taskName : "Unnamed task"
-    readonly property string displayStatus: statusText.length > 0 ? statusText : stateText
+    readonly property string displayName: taskName.length > 0 ? taskName : I18n.tr("未命名任务", "Unnamed task")
+    readonly property string displayStatus: statusText.length > 0 ? I18n.dynamic(statusText) : localizedStateText()
     readonly property int progressPercent: Math.round(progress * 100)
     readonly property int downloadKiB: Math.round(downloadRate / 1024)
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
@@ -90,6 +91,20 @@ Rectangle {
             return minutes + "m"
         }
         return seconds + "s"
+    }
+
+    function localizedStateText() {
+        switch (state) {
+        case 0: return I18n.tr("排队中", "Queued")
+        case 1: return I18n.tr("获取元数据", "Fetching metadata")
+        case 2: return I18n.tr("下载中", "Downloading")
+        case 3: return I18n.tr("暂停下载", "Paused")
+        case 4: return I18n.tr("做种中", "Seeding")
+        case 5: return I18n.tr("已完成", "Finished")
+        case 6: return I18n.tr("错误", "Error")
+        case 7: return I18n.tr("暂停做种", "Paused seeding")
+        default: return stateText.length > 0 ? I18n.dynamic(stateText) : I18n.tr("未知", "Unknown")
+        }
     }
 
     function snapshot() {
@@ -236,7 +251,7 @@ Rectangle {
             }
             Text {
                 Layout.fillWidth: true
-                text: rowRoot.stateText
+                text: rowRoot.localizedStateText()
                 color: AwaTheme.muted
                 font.pixelSize: 11
                 horizontalAlignment: Text.AlignRight
@@ -244,7 +259,7 @@ Rectangle {
             }
             Text {
                 Layout.fillWidth: true
-                text: "ETA " + rowRoot.formatDuration(rowRoot.etaSeconds)
+                text: I18n.tr("预计 ", "ETA ") + rowRoot.formatDuration(rowRoot.etaSeconds)
                 color: AwaTheme.muted
                 font.pixelSize: 11
                 horizontalAlignment: Text.AlignRight
@@ -262,7 +277,7 @@ Rectangle {
                 visible: !rowRoot.completed
                 enabled: rowRoot.downloadId.length > 0 && !rowRoot.paused
                 ToolTip.visible: hovered
-                ToolTip.text: "Pause"
+                ToolTip.text: I18n.tr("暂停", "Pause")
                 onClicked: rowRoot.pauseTask(rowRoot.downloadId)
             }
             AcidToolButton {
@@ -273,7 +288,7 @@ Rectangle {
                 visible: !rowRoot.completed
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.paused
                 ToolTip.visible: hovered
-                ToolTip.text: "Resume"
+                ToolTip.text: I18n.tr("继续", "Resume")
                 onClicked: rowRoot.resumeTask(rowRoot.downloadId)
             }
             AcidToolButton {
@@ -284,7 +299,7 @@ Rectangle {
                 visible: rowRoot.completed
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.savePath.length > 0
                 ToolTip.visible: hovered
-                ToolTip.text: "Open folder"
+                ToolTip.text: I18n.tr("打开文件夹", "Open folder")
                 onClicked: rowRoot.openFolder(rowRoot.downloadId)
             }
             AcidToolButton {
@@ -292,7 +307,7 @@ Rectangle {
                 Layout.preferredHeight: 36
                 text: "i"
                 ToolTip.visible: hovered
-                ToolTip.text: "Details"
+                ToolTip.text: I18n.tr("详情", "Details")
                 onClicked: rowRoot.openDetails(rowRoot.snapshot())
             }
         }

@@ -130,6 +130,14 @@ QJsonObject itemToJson(const awa::core::DownloadItem& item)
         {QStringLiteral("blockSize"), item.blockSize},
         {QStringLiteral("pieceMap"), item.pieceMap},
         {QStringLiteral("ratio"), item.ratio},
+        {QStringLiteral("peerCount"), item.peerCount},
+        {QStringLiteral("seedCount"), item.seedCount},
+        {QStringLiteral("connectionCount"), item.connectionCount},
+        {QStringLiteral("trackerCount"), item.trackerCount},
+        {QStringLiteral("workingTrackerCount"), item.workingTrackerCount},
+        {QStringLiteral("failedTrackerCount"), item.failedTrackerCount},
+        {QStringLiteral("dhtStatusText"), item.dhtStatusText},
+        {QStringLiteral("connectionHealthText"), item.connectionHealthText},
         {QStringLiteral("statusText"), item.statusText},
         {QStringLiteral("errorText"), item.errorText},
         {QStringLiteral("createdAt"), item.createdAt.toUTC().toString(Qt::ISODateWithMs)},
@@ -153,6 +161,14 @@ awa::core::DownloadItem itemFromJson(const QJsonObject& object)
     item.blockSize = object.value(QStringLiteral("blockSize")).toInt();
     item.pieceMap = object.value(QStringLiteral("pieceMap")).toString();
     item.ratio = object.value(QStringLiteral("ratio")).toDouble();
+    item.peerCount = object.value(QStringLiteral("peerCount")).toInt();
+    item.seedCount = object.value(QStringLiteral("seedCount")).toInt();
+    item.connectionCount = object.value(QStringLiteral("connectionCount")).toInt();
+    item.trackerCount = object.value(QStringLiteral("trackerCount")).toInt();
+    item.workingTrackerCount = object.value(QStringLiteral("workingTrackerCount")).toInt();
+    item.failedTrackerCount = object.value(QStringLiteral("failedTrackerCount")).toInt();
+    item.dhtStatusText = object.value(QStringLiteral("dhtStatusText")).toString();
+    item.connectionHealthText = object.value(QStringLiteral("connectionHealthText")).toString();
     item.statusText = object.value(QStringLiteral("statusText")).toString();
     item.errorText = object.value(QStringLiteral("errorText")).toString();
     item.createdAt = QDateTime::fromString(object.value(QStringLiteral("createdAt")).toString(), Qt::ISODateWithMs);
@@ -180,12 +196,13 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_bool(lt::settings_pack::piece_extent_affinity, false);
     settings.set_bool(lt::settings_pack::prioritize_partial_pieces, false);
     settings.set_bool(lt::settings_pack::prefer_rc4, true);
-    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.0");
+    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.1");
     settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:6881-6891,[::]:6881-6891");
     settings.set_str(lt::settings_pack::dht_bootstrap_nodes,
-        "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881");
-    settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_forced);
-    settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_forced);
+        "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,"
+        "dht.aelitis.com:6881,dht.libtorrent.org:25401");
+    settings.set_int(lt::settings_pack::out_enc_policy, lt::settings_pack::pe_enabled);
+    settings.set_int(lt::settings_pack::in_enc_policy, lt::settings_pack::pe_enabled);
     settings.set_int(lt::settings_pack::allowed_enc_level, lt::settings_pack::pe_both);
     settings.set_int(lt::settings_pack::connections_limit, 500);
     settings.set_int(lt::settings_pack::active_downloads, 20);
@@ -194,7 +211,7 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_int(lt::settings_pack::seed_choking_algorithm, lt::settings_pack::anti_leech);
     settings.set_int(lt::settings_pack::unchoke_slots_limit, 8);
     settings.set_int(lt::settings_pack::num_optimistic_unchoke_slots, 1);
-    settings.set_int(lt::settings_pack::connection_speed, 50);
+    settings.set_int(lt::settings_pack::connection_speed, 100);
     settings.set_int(lt::settings_pack::request_queue_time, 6);
     settings.set_int(lt::settings_pack::max_out_request_queue, 768);
     settings.set_int(lt::settings_pack::whole_pieces_threshold, 0);
@@ -334,6 +351,8 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     params.dht_nodes.emplace_back("router.bittorrent.com", 6881);
     params.dht_nodes.emplace_back("dht.transmissionbt.com", 6881);
     params.dht_nodes.emplace_back("router.utorrent.com", 6881);
+    params.dht_nodes.emplace_back("dht.aelitis.com", 6881);
+    params.dht_nodes.emplace_back("dht.libtorrent.org", 25401);
     applyTrackers(params);
     const auto infoHashes = params.info_hashes;
     const QString normalizedId = hashId(infoHashes);
@@ -464,6 +483,7 @@ void TorrentService::remove(const QString& id, bool removeFiles)
     }
     m_items.remove(id);
     m_lastMetadataRetry.remove(id);
+    m_lastPeerDiscovery.remove(id);
     m_metadataRetryCounts.remove(id);
     m_userPausedIds.remove(id);
     QFile::remove(resumeDataPath(id));
@@ -719,6 +739,7 @@ void TorrentService::pollAlerts()
                 continue;
             }
             m_lastMetadataRetry.remove(handleId(metadata->handle));
+            m_lastPeerDiscovery.remove(handleId(metadata->handle));
             m_metadataRetryCounts.remove(handleId(metadata->handle));
             rememberHandle(metadata->handle, awa::core::DownloadState::Downloading);
             updateSeedingPriority();
@@ -746,7 +767,7 @@ void TorrentService::pollAlerts()
                 continue;
             }
             recordTrackerResult(QString::fromUtf8(reply->tracker_url()), true, reply->num_peers);
-            auto item = m_items.value(id);
+            auto item = itemFromHandle(reply->handle);
             item.statusText = QStringLiteral("Tracker 已响应，发现 %1 个 peer").arg(reply->num_peers);
             m_items.insert(id, item);
             emit itemUpdated(item);
@@ -755,8 +776,8 @@ void TorrentService::pollAlerts()
             if (shouldIgnoreId(id)) {
                 continue;
             }
-            recordTrackerResult(QString::fromUtf8(warning->tracker_url()), false);
-            auto item = m_items.value(id);
+            recordTrackerResult(QString::fromUtf8(warning->tracker_url()), true);
+            auto item = itemFromHandle(warning->handle);
             item.statusText = QStringLiteral("Tracker 警告：%1").arg(QString::fromStdString(warning->message()));
             m_items.insert(id, item);
             emit itemUpdated(item);
@@ -766,7 +787,7 @@ void TorrentService::pollAlerts()
                 continue;
             }
             recordTrackerResult(QString::fromUtf8(trackerError->tracker_url()), false);
-            auto item = m_items.value(id);
+            auto item = itemFromHandle(trackerError->handle);
             item.statusText = QStringLiteral("Tracker 暂无响应，继续通过 DHT 查找 peer");
             m_items.insert(id, item);
             emit itemUpdated(item);
@@ -780,6 +801,7 @@ void TorrentService::pollAlerts()
             m_userPausedIds.remove(id);
             m_priorityPausedSeeds.remove(id);
             m_lastMetadataRetry.remove(id);
+            m_lastPeerDiscovery.remove(id);
             m_metadataRetryCounts.remove(id);
             QFile::remove(resumeDataPath(id));
             updateSeedingPriority();
@@ -828,6 +850,24 @@ void TorrentService::refreshStatuses()
                 m_metadataRetryCounts.insert(id, attempts);
                 m_lastMetadataRetry.insert(id, now);
                 item.statusText = QStringLiteral("正在重新获取元数据，第 %1 次重试").arg(attempts);
+            }
+        } else if (item.state == awa::core::DownloadState::Downloading
+            && item.peerCount <= 0
+            && item.connectionCount <= 0) {
+            const auto lastDiscovery = m_lastPeerDiscovery.value(id);
+            if (!lastDiscovery.isValid() || lastDiscovery.msecsTo(now) >= 30000) {
+                auto handle = it.value();
+                applyTrackersToHandle(handle);
+                handle.force_reannounce();
+                handle.force_dht_announce();
+                handle.force_lsd_announce();
+                const auto hashes = handle.info_hashes();
+                if (hashes.has_v1()) {
+                    m_session->dht_get_peers(hashes.v1);
+                }
+                m_lastPeerDiscovery.insert(id, now);
+                item.statusText = QStringLiteral("暂无 peer，正在重新向 Tracker/DHT 查找连接");
+                item.connectionHealthText = QStringLiteral("正在重新发现 peer");
             }
         }
         m_items.insert(item.id, item);
@@ -1028,15 +1068,53 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
     }
     item.downloadRate = status.download_rate;
     item.uploadRate = status.upload_rate;
+    item.peerCount = std::max(0, status.num_peers + status.list_peers);
+    item.seedCount = std::max(0, status.num_seeds);
+    item.connectionCount = std::max(0, status.num_connections);
+    item.dhtStatusText = status.announcing_to_dht
+        ? QStringLiteral("DHT 查询中")
+        : QStringLiteral("DHT 等待下一次查询");
     if (status.all_time_download > 0) {
         item.ratio = static_cast<double>(status.all_time_upload) / static_cast<double>(status.all_time_download);
     }
     const auto liveTrackers = handle.trackers();
+    item.trackerCount = static_cast<int>(liveTrackers.size());
+    item.workingTrackerCount = 0;
+    item.failedTrackerCount = 0;
     if (!liveTrackers.empty()) {
         item.trackers.clear();
         for (const auto& tracker : liveTrackers) {
-            item.trackers.append(QString::fromStdString(tracker.url));
+            const QString url = QString::fromStdString(tracker.url);
+            item.trackers.append(url);
+            const auto health = m_trackerHealth.value(url);
+            bool trackerIsUpdating = false;
+            bool trackerHasRecentFailure = false;
+            for (const auto& endpoint : tracker.endpoints) {
+                for (const auto& infoHash : endpoint.info_hashes) {
+                    trackerIsUpdating = trackerIsUpdating || infoHash.updating;
+                    trackerHasRecentFailure = trackerHasRecentFailure
+                        || infoHash.fails > 0
+                        || static_cast<bool>(infoHash.last_error);
+                }
+            }
+            const bool trackerIsWorking = tracker.verified || health.successes > health.failures;
+            if (trackerIsWorking) {
+                ++item.workingTrackerCount;
+            } else if (trackerHasRecentFailure || (health.failures > 0 && health.failures > health.successes)) {
+                ++item.failedTrackerCount;
+            } else if (trackerIsUpdating) {
+                item.connectionHealthText = QStringLiteral("正在等待 Tracker 响应");
+            }
         }
+    }
+    if (item.connectionCount > 0) {
+        item.connectionHealthText = QStringLiteral("已连接 %1 个 peer").arg(item.connectionCount);
+    } else if (item.peerCount > 0) {
+        item.connectionHealthText = QStringLiteral("发现 %1 个 peer，正在建立连接").arg(item.peerCount);
+    } else if (item.trackerCount > 0 || status.announcing_to_dht) {
+        item.connectionHealthText = QStringLiteral("正在通过 Tracker/DHT 查找 peer");
+    } else {
+        item.connectionHealthText = QStringLiteral("等待可用 peer");
     }
 
     const bool completedWithoutSeeding = item.state == awa::core::DownloadState::Finished
@@ -1078,14 +1156,19 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
     }
 
     if (item.state == awa::core::DownloadState::FetchingMetadata) {
-        item.statusText = QStringLiteral("获取元数据：DHT %1，Peers %2，连接 %3")
-            .arg(status.announcing_to_dht ? QStringLiteral("查询中") : QStringLiteral("等待"))
-            .arg(status.num_peers + status.list_peers)
-            .arg(status.num_connections);
+        item.statusText = QStringLiteral("获取元数据：%1，Peers %2，连接 %3，Tracker %4/%5")
+            .arg(item.dhtStatusText)
+            .arg(item.peerCount)
+            .arg(item.connectionCount)
+            .arg(item.workingTrackerCount)
+            .arg(item.trackerCount);
     } else if (item.state == awa::core::DownloadState::Downloading) {
-        item.statusText = QStringLiteral("下载中：Peers %1，连接 %2")
-            .arg(status.num_peers + status.list_peers)
-            .arg(status.num_connections);
+        item.statusText = QStringLiteral("下载中：Peers %1，Seeds %2，连接 %3，Tracker %4/%5")
+            .arg(item.peerCount)
+            .arg(item.seedCount)
+            .arg(item.connectionCount)
+            .arg(item.workingTrackerCount)
+            .arg(item.trackerCount);
     } else if (m_priorityPausedSeeds.contains(item.id)) {
         item.statusText = m_seedOnCompletionEnabled
             ? QStringLiteral("下载优先，等待下载任务完成后继续做种")

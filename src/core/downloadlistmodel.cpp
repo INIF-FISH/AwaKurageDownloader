@@ -67,6 +67,14 @@ QVariant DownloadListModel::data(const QModelIndex& index, int role) const
     case BlockSizeRole: return item.blockSize;
     case PieceMapRole: return item.pieceMap;
     case RatioRole: return item.ratio;
+    case PeerCountRole: return item.peerCount;
+    case SeedCountRole: return item.seedCount;
+    case ConnectionCountRole: return item.connectionCount;
+    case TrackerCountRole: return item.trackerCount;
+    case WorkingTrackerCountRole: return item.workingTrackerCount;
+    case FailedTrackerCountRole: return item.failedTrackerCount;
+    case DhtStatusTextRole: return item.dhtStatusText;
+    case ConnectionHealthTextRole: return item.connectionHealthText;
     case StatusTextRole: return item.statusText;
     case ErrorTextRole: return item.errorText;
     default: return {};
@@ -92,6 +100,14 @@ QHash<int, QByteArray> DownloadListModel::roleNames() const
         {BlockSizeRole, "blockSize"},
         {PieceMapRole, "pieceMap"},
         {RatioRole, "ratio"},
+        {PeerCountRole, "peerCount"},
+        {SeedCountRole, "seedCount"},
+        {ConnectionCountRole, "connectionCount"},
+        {TrackerCountRole, "trackerCount"},
+        {WorkingTrackerCountRole, "workingTrackerCount"},
+        {FailedTrackerCountRole, "failedTrackerCount"},
+        {DhtStatusTextRole, "dhtStatusText"},
+        {ConnectionHealthTextRole, "connectionHealthText"},
         {StatusTextRole, "statusText"},
         {ErrorTextRole, "errorText"}
     };
@@ -174,6 +190,14 @@ void DownloadListModel::upsert(const DownloadItem& item)
     if (previous.blockSize != item.blockSize) changedRoles.append(BlockSizeRole);
     if (previous.pieceMap != item.pieceMap) changedRoles.append(PieceMapRole);
     if (previous.ratio != item.ratio) changedRoles.append(RatioRole);
+    if (previous.peerCount != item.peerCount) changedRoles.append(PeerCountRole);
+    if (previous.seedCount != item.seedCount) changedRoles.append(SeedCountRole);
+    if (previous.connectionCount != item.connectionCount) changedRoles.append(ConnectionCountRole);
+    if (previous.trackerCount != item.trackerCount) changedRoles.append(TrackerCountRole);
+    if (previous.workingTrackerCount != item.workingTrackerCount) changedRoles.append(WorkingTrackerCountRole);
+    if (previous.failedTrackerCount != item.failedTrackerCount) changedRoles.append(FailedTrackerCountRole);
+    if (previous.dhtStatusText != item.dhtStatusText) changedRoles.append(DhtStatusTextRole);
+    if (previous.connectionHealthText != item.connectionHealthText) changedRoles.append(ConnectionHealthTextRole);
     if (previous.statusText != item.statusText) changedRoles.append(StatusTextRole);
     if (previous.errorText != item.errorText) changedRoles.append(ErrorTextRole);
 

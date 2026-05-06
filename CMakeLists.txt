@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(AwaKurageDownloader
-    VERSION 0.1.0
+    VERSION 0.1.1
     DESCRIPTION "A modern cross-platform BitTorrent downloader"
     LANGUAGES CXX
 )
