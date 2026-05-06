@@ -18,6 +18,7 @@ ApplicationWindow {
     property string selectedDownloadId: ""
     property var selectedDownload: ({})
     property string toastText: ""
+    property string selectedLanguage: ""
     property int currentPage: 0
     property int downloadSectionTab: 0
     property int downloadsRevision: 0
@@ -297,7 +298,8 @@ ApplicationWindow {
     onDownloadSectionTabChanged: markCurrentDownloadTabSeen()
 
     Component.onCompleted: {
-        I18n.language = settingsService.language()
+        selectedLanguage = settingsService.language()
+        I18n.language = selectedLanguage
         refreshDownloadTabBadges(true)
     }
 
@@ -1233,21 +1235,22 @@ ApplicationWindow {
                                             { "text": I18n.tr("英语", "English"), "value": "en_US" },
                                             { "text": I18n.tr("日语", "Japanese"), "value": "ja_JP" }
                                         ]
-                                        Component.onCompleted: {
-                                            const savedLanguage = settingsService.language()
+                                        currentIndex: {
                                             for (let i = 0; i < model.length; ++i) {
-                                                if (model[i].value === savedLanguage) {
-                                                    currentIndex = i
-                                                    return
+                                                if (model[i].value === selectedLanguage) {
+                                                    return i
                                                 }
                                             }
-                                            currentIndex = 0
+                                            return 0
                                         }
                                         onActivated: function(index) {
                                             const nextLanguage = currentValue
-                                            I18n.language = nextLanguage
-                                            settingsService.setLanguage(nextLanguage)
-                                            showToast(I18n.tr("语言已切换", "Language changed"))
+                                            if (selectedLanguage !== nextLanguage) {
+                                                selectedLanguage = nextLanguage
+                                                I18n.language = nextLanguage
+                                                settingsService.setLanguage(nextLanguage)
+                                                showToast(I18n.tr("语言已切换", "Language changed"))
+                                            }
                                         }
                                     }
                                 }
