@@ -816,8 +816,11 @@ ApplicationWindow {
                     ListView {
                         id: listView
                         anchors.fill: parent
-                        anchors.margins: 22
-                        spacing: 12
+                        anchors.leftMargin: 22
+                        anchors.rightMargin: 22
+                        anchors.topMargin: 14
+                        anchors.bottomMargin: 22
+                        spacing: 0
                         clip: true
                         model: downloadManager.downloads
                         displaced: Transition { NumberAnimation { properties: "x,y"; duration: 180; easing.type: Easing.OutCubic } }
@@ -825,21 +828,27 @@ ApplicationWindow {
                             NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 160 }
                             NumberAnimation { property: "y"; from: 18; duration: 180; easing.type: Easing.OutCubic }
                         }
-                        delegate: DownloadRow {
+                        delegate: Item {
                             width: ListView.view.width
-                            itemData: {
+                            height: matchesDownloadSection(itemData) ? 130 : 0
+                            visible: height > 0
+                            property var itemData: {
                                 downloadsRevision
                                 return downloadManager.downloads.get(index)
                             }
-                            visible: matchesDownloadSection(itemData)
-                            height: visible ? 118 : 0
-                            rowIndex: index
-                            selected: selectedDownloadId === itemData.downloadId
-                            onOpenDetails: function(item) { selectDownload(item.downloadId, item) }
-                            onPauseTask: function(id) { downloadManager.pause(id) }
-                            onResumeTask: function(id) { downloadManager.resume(id) }
-                            onOpenFolder: function(id) { downloadManager.openSavePath(id) }
-                            onRemoveTask: function(id) { downloadManager.remove(id, false) }
+
+                            DownloadRow {
+                                width: parent.width
+                                height: 118
+                                itemData: parent.itemData
+                                rowIndex: index
+                                selected: selectedDownloadId === itemData.downloadId
+                                onOpenDetails: function(item) { selectDownload(item.downloadId, item) }
+                                onPauseTask: function(id) { downloadManager.pause(id) }
+                                onResumeTask: function(id) { downloadManager.resume(id) }
+                                onOpenFolder: function(id) { downloadManager.openSavePath(id) }
+                                onRemoveTask: function(id) { downloadManager.remove(id, false) }
+                            }
                         }
 
                         Panel {
