@@ -29,6 +29,11 @@ TEST_CASE("DownloadListModel inserts updates and removes items")
     REQUIRE(model.rowCount() == 0);
 }
 
+TEST_CASE("DownloadState exposes waiting text")
+{
+    REQUIRE(stateToString(DownloadState::Waiting) == QStringLiteral("等待下载"));
+}
+
 TEST_CASE("DownloadManager uses default save path when options omit one")
 {
     class FakeBackend final : public TorrentBackend {

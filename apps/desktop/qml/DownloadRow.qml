@@ -33,21 +33,22 @@ Rectangle {
     readonly property bool seeding: state === 4 || state === 7
     readonly property bool finished: state === 5
     readonly property bool paused: state === 3 || state === 7
+    readonly property bool waiting: state === 8
     readonly property color rowColor: selected
-        ? (completed ? "#eefcf4" : "#f2f9ff")
+        ? (completed ? "#eefcf4" : waiting ? "#fff8ed" : "#f2f9ff")
         : hoverHandler.hovered
-            ? (completed ? "#f6fdf8" : "#fbfdff")
-            : (completed ? "#f7fff9" : "#ffffff")
+            ? (completed ? "#f6fdf8" : waiting ? "#fffbf4" : "#fbfdff")
+            : (completed ? "#f7fff9" : waiting ? "#fffaf0" : "#ffffff")
     readonly property color accentColor: selected
-        ? (finished ? "#16a34a" : seeding ? "#0f9fb8" : "#2d8df0")
+        ? (finished ? "#16a34a" : seeding ? "#0f9fb8" : waiting ? "#f59e0b" : "#2d8df0")
         : hoverHandler.hovered
-            ? (finished ? "#22c55e" : seeding ? "#22cbd6" : "#80b8ee")
-            : (finished ? "#86efac" : seeding ? "#99f6e4" : completed ? "#b7ebc9" : "#d9ecff")
-    readonly property color badgeColor: finished ? "#ecfdf3" : seeding ? "#ecfeff" : "#eef7ff"
-    readonly property color badgeTextColor: finished ? "#15803d" : seeding ? "#0f766e" : "#dc2626"
-    readonly property color progressTrackColor: completed ? "#dcfce7" : "#fff3e6"
-    readonly property color progressTrackBorderColor: completed ? "#a7f3d0" : "#ffd7a8"
-    readonly property color progressFillColor: finished ? "#22c55e" : seeding ? "#14b8a6" : "#f97316"
+            ? (finished ? "#22c55e" : seeding ? "#22cbd6" : waiting ? "#fbbf24" : "#80b8ee")
+            : (finished ? "#86efac" : seeding ? "#99f6e4" : completed ? "#b7ebc9" : waiting ? "#fde68a" : "#d9ecff")
+    readonly property color badgeColor: finished ? "#ecfdf3" : seeding ? "#ecfeff" : waiting ? "#fffbeb" : "#eef7ff"
+    readonly property color badgeTextColor: finished ? "#15803d" : seeding ? "#0f766e" : waiting ? "#b45309" : "#dc2626"
+    readonly property color progressTrackColor: completed ? "#dcfce7" : waiting ? "#fef3c7" : "#fff3e6"
+    readonly property color progressTrackBorderColor: completed ? "#a7f3d0" : waiting ? "#fde68a" : "#ffd7a8"
+    readonly property color progressFillColor: finished ? "#22c55e" : seeding ? "#14b8a6" : waiting ? "#f59e0b" : "#f97316"
 
     signal openDetails(var item)
     signal pauseTask(string id)
@@ -103,6 +104,7 @@ Rectangle {
         case 5: return I18n.tr("已完成", "Finished")
         case 6: return I18n.tr("错误", "Error")
         case 7: return I18n.tr("暂停做种", "Paused seeding")
+        case 8: return I18n.tr("等待下载", "Waiting")
         default: return stateText.length > 0 ? I18n.dynamic(stateText) : I18n.tr("未知", "Unknown")
         }
     }
@@ -157,7 +159,7 @@ Rectangle {
             border.width: 0
             Text {
                 anchors.centerIn: parent
-                text: rowRoot.finished ? "OK" : rowRoot.seeding ? "SE" : "BT"
+                text: rowRoot.finished ? "OK" : rowRoot.seeding ? "SE" : rowRoot.waiting ? "WT" : "BT"
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
                 color: badgeTextColor

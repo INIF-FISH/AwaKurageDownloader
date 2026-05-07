@@ -29,6 +29,8 @@ public:
     void setFilePriorities(const QString& id, const QVector<awa::core::FilePriority>& priorities) override;
     void setSpeedLimits(int downloadKiB, int uploadKiB) override;
     void setChokingStrategy(int chokingAlgorithm, int seedChokingAlgorithm, int uploadSlots, int optimisticSlots) override;
+    void setMaxActiveDownloads(int count) override;
+    void setDynamicBlockTuningEnabled(bool enabled) override;
     void setSeedOnCompletionEnabled(bool enabled) override;
     void setTrackers(const QStringList& trackers) override;
     void loadPersistedTasks() override;
@@ -48,6 +50,15 @@ private:
         QDateTime lastFailure;
     };
 
+    struct PieceProbeState {
+        qint64 lastDownloadedBytes = 0;
+        int lowThroughputSamples = 0;
+        int healthySamples = 0;
+        int targetActivePieces = 4;
+        QSet<int> deadlinePieces;
+        QSet<int> unhealthyPieces;
+    };
+
     QString handleId(const libtorrent::torrent_handle& handle) const;
     awa::core::DownloadItem itemFromHandle(const libtorrent::torrent_handle& handle) const;
     void rememberHandle(const libtorrent::torrent_handle& handle, awa::core::DownloadState initialState);
@@ -64,6 +75,13 @@ private:
     void recordTrackerResult(const QString& tracker, bool success, int peers = 0);
     void reprioritizeTrackers();
     bool hasActiveDownloads() const;
+    void updateDynamicBlockTuning();
+    void updateProbePieceSelection(
+        const QString& id,
+        const libtorrent::torrent_handle& handle,
+        const libtorrent::torrent_status& status,
+        const std::vector<libtorrent::partial_piece_info>& downloadingPieces);
+    void updateDownloadQueue();
     void updateSeedingPriority();
 
     std::unique_ptr<libtorrent::session> m_session;
@@ -77,12 +95,18 @@ private:
     QHash<QString, QDateTime> m_lastPeerDiscovery;
     QHash<QString, int> m_metadataRetryCounts;
     QHash<QString, TrackerHealth> m_trackerHealth;
+    QHash<QString, PieceProbeState> m_pieceProbes;
     QSet<QString> m_removedIds;
     QSet<QString> m_userPausedIds;
+    QSet<QString> m_schedulerPausedIds;
     QSet<QString> m_priorityPausedSeeds;
     QStringList m_defaultTrackers;
     bool m_persistedTasksLoaded = false;
     bool m_seedOnCompletionEnabled = true;
+    bool m_dynamicBlockTuningEnabled = true;
+    int m_maxActiveDownloads = 20;
+    int m_requestQueueTime = 6;
+    int m_maxOutRequestQueue = 768;
 };
 
 } // namespace awa::torrent

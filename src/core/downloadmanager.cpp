@@ -59,6 +59,16 @@ int DownloadManager::optimisticSlots() const
     return m_optimisticSlots;
 }
 
+int DownloadManager::maxActiveDownloads() const
+{
+    return m_maxActiveDownloads;
+}
+
+bool DownloadManager::dynamicBlockTuningEnabled() const
+{
+    return m_dynamicBlockTuningEnabled;
+}
+
 bool DownloadManager::seedOnCompletionEnabled() const
 {
     return m_seedOnCompletionEnabled;
@@ -116,6 +126,8 @@ void DownloadManager::setBackend(TorrentBackend* backend)
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);
     m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
     m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
+    m_backend->setMaxActiveDownloads(m_maxActiveDownloads);
+    m_backend->setDynamicBlockTuningEnabled(m_dynamicBlockTuningEnabled);
     m_backend->setSeedOnCompletionEnabled(m_seedOnCompletionEnabled);
     m_backend->setTrackers(parseTrackerUrls(m_trackerUrlsText));
     m_backend->loadPersistedTasks();
@@ -203,6 +215,39 @@ void DownloadManager::setChokingStrategy(int chokingAlgorithm, int seedChokingAl
         m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
     }
     emit toastRequested(QStringLiteral("稀有块优先与上传博弈策略已应用"));
+}
+
+void DownloadManager::setMaxActiveDownloads(int count)
+{
+    const int clamped = std::clamp(count, 1, 200);
+    if (m_maxActiveDownloads == clamped) {
+        return;
+    }
+
+    m_maxActiveDownloads = clamped;
+    emit downloadConcurrencyChanged();
+
+    if (m_backend) {
+        m_backend->setMaxActiveDownloads(m_maxActiveDownloads);
+    }
+    emit toastRequested(QStringLiteral("并行下载任务数已应用"));
+}
+
+void DownloadManager::setDynamicBlockTuningEnabled(bool enabled)
+{
+    if (m_dynamicBlockTuningEnabled == enabled) {
+        return;
+    }
+
+    m_dynamicBlockTuningEnabled = enabled;
+    emit blockStrategyChanged();
+
+    if (m_backend) {
+        m_backend->setDynamicBlockTuningEnabled(m_dynamicBlockTuningEnabled);
+    }
+    emit toastRequested(m_dynamicBlockTuningEnabled
+        ? QStringLiteral("动态并行块已启用")
+        : QStringLiteral("动态并行块已关闭"));
 }
 
 void DownloadManager::setSeedOnCompletionEnabled(bool enabled)

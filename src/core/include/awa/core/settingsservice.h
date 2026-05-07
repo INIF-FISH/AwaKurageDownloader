@@ -33,6 +33,10 @@ public:
     Q_INVOKABLE void setUploadSlots(int slotCount);
     Q_INVOKABLE int optimisticSlots() const;
     Q_INVOKABLE void setOptimisticSlots(int slotCount);
+    Q_INVOKABLE int maxActiveDownloads() const;
+    Q_INVOKABLE void setMaxActiveDownloads(int count);
+    Q_INVOKABLE bool dynamicBlockTuningEnabled() const;
+    Q_INVOKABLE void setDynamicBlockTuningEnabled(bool enabled);
     Q_INVOKABLE QString trackerUrlsText() const;
     Q_INVOKABLE void setTrackerUrlsText(const QString& text);
     Q_INVOKABLE QString defaultTrackerUrlsText() const;

@@ -24,9 +24,9 @@ QtObject {
     readonly property color success: "#178fca"
     readonly property color shadow: "#1b6eb0"
 
-    readonly property int radiusSm: 8
-    readonly property int radiusMd: 12
-    readonly property int radiusLg: 18
-    readonly property int radiusXl: 26
+    readonly property int radiusSm: 1
+    readonly property int radiusMd: 2
+    readonly property int radiusLg: 4
+    readonly property int radiusXl: 8
     readonly property int gap: 16
 }

@@ -170,6 +170,30 @@ void SettingsService::setOptimisticSlots(int slotCount)
     settings.setValue(QStringLiteral("torrent/optimisticSlots"), std::clamp(slotCount, 0, 10));
 }
 
+int SettingsService::maxActiveDownloads() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    return settings.value(QStringLiteral("torrent/maxActiveDownloads"), 20).toInt();
+}
+
+void SettingsService::setMaxActiveDownloads(int count)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("torrent/maxActiveDownloads"), std::clamp(count, 1, 200));
+}
+
+bool SettingsService::dynamicBlockTuningEnabled() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    return settings.value(QStringLiteral("torrent/dynamicBlockTuningEnabled"), true).toBool();
+}
+
+void SettingsService::setDynamicBlockTuningEnabled(bool enabled)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("torrent/dynamicBlockTuningEnabled"), enabled);
+}
+
 QString SettingsService::trackerUrlsText() const
 {
     QSettings settings(m_settingsPath, QSettings::IniFormat);

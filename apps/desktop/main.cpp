@@ -93,6 +93,8 @@ int main(int argc, char* argv[])
         settings.seedChokingAlgorithm(),
         settings.uploadSlots(),
         settings.optimisticSlots());
+    manager.setMaxActiveDownloads(settings.maxActiveDownloads());
+    manager.setDynamicBlockTuningEnabled(settings.dynamicBlockTuningEnabled());
     manager.setSeedOnCompletionEnabled(settings.seedOnCompletionEnabled());
     manager.setTrackerUrlsText(settings.trackerUrlsText());
 

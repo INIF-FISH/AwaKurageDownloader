@@ -967,7 +967,7 @@ ApplicationWindow {
                                                         const x = (i % columns) * (cell + gap)
                                                         const y = Math.floor(i / columns) * (cell + gap)
                                                         const state = map.charAt(i)
-                                                        ctx.fillStyle = state === "1" ? "#a9eec1" : state === "2" ? "#fff2a8" : "#dceeff"
+                                                        ctx.fillStyle = state === "1" ? "#a9eec1" : state === "2" ? "#fff2a8" : state === "3" ? "#fecaca" : "#dceeff"
                                                         ctx.fillRect(x, y, cell, cell)
                                                     }
                                                 }
@@ -998,6 +998,8 @@ ApplicationWindow {
                                     Text { text: I18n.tr("已完成", "Done"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#fff2a8"; border.color: "#e5c84c" }
                                     Text { text: I18n.tr("下载中", "Downloading"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
+                                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#fecaca"; border.color: "#ef4444" }
+                                    Text { text: I18n.tr("不良块", "Poor"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: "#dceeff"; border.color: AwaTheme.border }
                                     Text { text: I18n.tr("未完成", "Missing"); color: AwaTheme.inkSoft; font.pixelSize: 11 }
                                     Item { Layout.fillWidth: true }
@@ -1340,6 +1342,15 @@ ApplicationWindow {
                                         checked: downloadManager.seedOnCompletionEnabled
                                         text: checked ? I18n.tr("继续做种", "Keep Seeding") : I18n.tr("完成即停止", "Stop When Done")
                                     }
+                                    LabelText { text: I18n.tr("并行下载任务", "Active Downloads") }
+                                    SpinBox { id: activeDownloadsSpin; Layout.fillWidth: true; from: 1; to: 200; value: downloadManager.maxActiveDownloads }
+                                    LabelText { text: I18n.tr("动态并行块", "Dynamic Blocks") }
+                                    Switch {
+                                        id: dynamicBlockSwitch
+                                        Layout.fillWidth: true
+                                        checked: downloadManager.dynamicBlockTuningEnabled
+                                        text: checked ? I18n.tr("自动调整", "Auto Tune") : I18n.tr("固定队列", "Fixed Queue")
+                                    }
                                     LabelText { text: I18n.tr("上传槽位", "Upload Slots") }
                                     SpinBox { id: uploadSlotsSpin; Layout.fillWidth: true; from: 1; to: 200; value: downloadManager.uploadSlots }
                                     LabelText { text: I18n.tr("乐观解阻塞槽位", "Optimistic Slots") }
@@ -1350,9 +1361,13 @@ ApplicationWindow {
                                         tone: "primary"
                                         onClicked: {
                                             downloadManager.setChokingStrategy(chokingAlgorithmBox.currentIndex, seedChokingAlgorithmBox.currentIndex, uploadSlotsSpin.value, optimisticSlotsSpin.value)
+                                            downloadManager.setMaxActiveDownloads(activeDownloadsSpin.value)
+                                            downloadManager.setDynamicBlockTuningEnabled(dynamicBlockSwitch.checked)
                                             downloadManager.setSeedOnCompletionEnabled(seedOnCompletionSwitch.checked)
                                             settingsService.setChokingAlgorithm(chokingAlgorithmBox.currentIndex)
                                             settingsService.setSeedChokingAlgorithm(seedChokingAlgorithmBox.currentIndex)
+                                            settingsService.setMaxActiveDownloads(activeDownloadsSpin.value)
+                                            settingsService.setDynamicBlockTuningEnabled(dynamicBlockSwitch.checked)
                                             settingsService.setSeedOnCompletionEnabled(seedOnCompletionSwitch.checked)
                                             settingsService.setUploadSlots(uploadSlotsSpin.value)
                                             settingsService.setOptimisticSlots(optimisticSlotsSpin.value)
