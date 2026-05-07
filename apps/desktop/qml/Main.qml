@@ -29,6 +29,7 @@ ApplicationWindow {
     property int completedUnseenCount: 0
     property int selectedChokingAlgorithm: downloadManager.chokingAlgorithm
     property int selectedSeedChokingAlgorithm: downloadManager.seedChokingAlgorithm
+    property bool downloadTabBadgesReady: false
     property var downloadTabSnapshot: ({})
     readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
     readonly property int selectedState: selectedDownload.state === undefined ? -1 : selectedDownload.state
@@ -177,8 +178,11 @@ ApplicationWindow {
                 nextCompletedCount += 1
             }
 
+            const hasPreviousSection = Object.prototype.hasOwnProperty.call(downloadTabSnapshot, item.downloadId)
             const previousSection = downloadTabSnapshot[item.downloadId]
-            if (!initialLoad && section >= 0 && previousSection !== section) {
+            const shouldCountBadge = !initialLoad && downloadTabBadgesReady && section >= 0
+                && (!hasPreviousSection || previousSection !== section)
+            if (shouldCountBadge) {
                 if (!(currentPage === 0 && downloadSectionTab === section)) {
                     if (section === 0) {
                         nextDownloadingUnseen += 1
@@ -294,6 +298,16 @@ ApplicationWindow {
         }
     }
 
+    Timer {
+        id: downloadTabBadgeReadyTimer
+        interval: 3000
+        repeat: false
+        onTriggered: {
+            refreshDownloadTabBadges(true)
+            downloadTabBadgesReady = true
+        }
+    }
+
     onCurrentPageChanged: markCurrentDownloadTabSeen()
     onDownloadSectionTabChanged: markCurrentDownloadTabSeen()
 
@@ -301,6 +315,7 @@ ApplicationWindow {
         selectedLanguage = settingsService.language()
         I18n.language = selectedLanguage
         refreshDownloadTabBadges(true)
+        downloadTabBadgeReadyTimer.start()
     }
 
     FileDialog {
@@ -422,6 +437,76 @@ ApplicationWindow {
                     Item { Layout.fillWidth: true }
                     AcidButton { text: I18n.tr("取消", "Cancel"); onClicked: magnetDialog.close() }
                     AcidButton { text: I18n.tr("添加任务", "Add Task"); tone: "primary"; onClicked: addMagnetFromDialog() }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: removeConfirmDialog
+        modal: true
+        width: Math.min(460, window.width - 56)
+        height: 220
+        x: Math.round((window.width - width) / 2)
+        y: Math.round((window.height - height) / 2)
+        padding: 0
+        closePolicy: Popup.CloseOnEscape
+        Overlay.modal: Rectangle { color: "#660d3558" }
+
+        background: Rectangle {
+            radius: AwaTheme.radiusXl
+            color: AwaTheme.surface
+            border.color: AwaTheme.borderStrong
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 24
+            spacing: 14
+
+            Text {
+                Layout.fillWidth: true
+                text: I18n.tr("确认移除任务", "Remove Task?")
+                color: AwaTheme.ink
+                font.pixelSize: 20
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                text: I18n.tr("任务会从列表中移除，已下载文件会保留。", "The task will be removed from the list. Downloaded files will be kept.")
+                color: AwaTheme.muted
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                Layout.fillWidth: true
+                text: selectedDownload.name || selectedDownload.source || selectedDownloadId
+                color: AwaTheme.inkSoft
+                font.pixelSize: 12
+                elide: Text.ElideMiddle
+            }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AcidButton {
+                    text: I18n.tr("取消", "Cancel")
+                    onClicked: removeConfirmDialog.close()
+                }
+                AcidButton {
+                    text: I18n.tr("确认移除", "Remove")
+                    tone: "danger"
+                    onClicked: {
+                        const id = selectedDownloadId
+                        removeConfirmDialog.close()
+                        if (id.length > 0) {
+                            selectedDownloadId = ""
+                            selectedDownload = ({})
+                            downloadManager.remove(id, false)
+                        }
+                    }
                 }
             }
         }
@@ -1028,7 +1113,7 @@ ApplicationWindow {
                             text: I18n.tr("移除任务", "Remove Task")
                             tone: "danger"
                             enabled: selectedDownloadId.length > 0
-                            onClicked: downloadManager.remove(selectedDownloadId, false)
+                            onClicked: removeConfirmDialog.open()
                         }
 
                         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
