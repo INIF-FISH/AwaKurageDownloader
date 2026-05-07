@@ -38,7 +38,12 @@ namespace {
 constexpr int DefaultRequestQueueTime = 6;
 constexpr int DefaultMaxOutRequestQueue = 768;
 constexpr int MinProbePieces = 4;
-constexpr int MaxProbePieces = 16;
+constexpr int MaxProbePieces = 64;
+constexpr int ProbeBaselineSamples = 8;
+constexpr int ProbeEvaluationSamples = 8;
+constexpr int ProbeCooldownSamples = 5;
+constexpr int ProbeMinGainPermille = 30;
+constexpr int ProbeLossPermille = 30;
 
 QString hashId(const lt::info_hash_t& hashes)
 {
@@ -1314,6 +1319,9 @@ void TorrentService::updateProbePieceSelection(
 {
     auto clearProbe = [&]() {
         auto probe = m_pieceProbes.take(id);
+        if (!handle.is_valid()) {
+            return;
+        }
         for (const int piece : probe.deadlinePieces) {
             if (piece >= 0) {
                 handle.reset_piece_deadline(lt::piece_index_t(piece));
@@ -1342,6 +1350,27 @@ void TorrentService::updateProbePieceSelection(
     auto& probe = m_pieceProbes[id];
     const qint64 downloadedDelta = std::max<qint64>(0, status.total_wanted_done - probe.lastDownloadedBytes);
     probe.lastDownloadedBytes = status.total_wanted_done;
+    const qint64 sampleRate = std::max<qint64>(0, std::max<qint64>(status.download_rate, downloadedDelta));
+    probe.smoothedDownloadRate = probe.smoothedDownloadRate <= 0
+        ? sampleRate
+        : (probe.smoothedDownloadRate * 3 + sampleRate) / 4;
+    auto resetProbeWindow = [&probe] {
+        probe.probeActive = false;
+        probe.probeSamples = 0;
+        probe.probeBaselineRate = 0;
+        probe.probeRateSum = 0;
+    };
+    auto resetPreProbeWindow = [&probe] {
+        probe.preProbeRates.clear();
+        probe.preProbeRateSum = 0;
+    };
+    auto addPreProbeSample = [&probe](qint64 rate) {
+        probe.preProbeRates.enqueue(rate);
+        probe.preProbeRateSum += rate;
+        while (probe.preProbeRates.size() > ProbeBaselineSamples) {
+            probe.preProbeRateSum -= probe.preProbeRates.dequeue();
+        }
+    };
 
     int activePieces = 0;
     int healthyPieces = 0;
@@ -1381,7 +1410,8 @@ void TorrentService::updateProbePieceSelection(
         }
     }
 
-    const bool lowThroughput = status.download_rate < 160 * 1024
+    const bool hasProbeActivity = activePieces > 0 || requestedBlocks > 0 || downloadedDelta > 0;
+    const bool lowThroughput = (hasProbeActivity && status.download_rate < 160 * 1024)
         || (downloadedDelta == 0 && activePieces > 0 && requestedBlocks > progressingBlocks);
     const bool healthyThroughput = status.download_rate >= 512 * 1024
         || (downloadedDelta >= 384 * 1024 && healthyPieces >= std::max(1, activePieces / 2));
@@ -1397,35 +1427,88 @@ void TorrentService::updateProbePieceSelection(
         probe.healthySamples = std::max(0, probe.healthySamples - 1);
     }
 
-    if (probe.lowThroughputSamples >= 2 && activePieces <= probe.targetActivePieces) {
+    if (probe.probeCooldownSamples > 0) {
+        --probe.probeCooldownSamples;
+    }
+
+    if (!probe.probeActive) {
+        if (lowThroughput) {
+            resetPreProbeWindow();
+        } else if (healthyThroughput && activePieces >= probe.targetActivePieces && probe.probeCooldownSamples == 0) {
+            addPreProbeSample(probe.smoothedDownloadRate);
+        }
+    }
+
+    if (probe.probeActive) {
+        ++probe.probeSamples;
+        probe.probeRateSum += probe.smoothedDownloadRate;
+
+        const bool probeStalled = probe.lowThroughputSamples >= 2;
+        const bool probeWindowComplete = probe.probeSamples >= ProbeEvaluationSamples;
+        if (probeStalled || probeWindowComplete) {
+            const bool hasBaseline = probe.probeBaselineRate > 0;
+            const qint64 probeAverageRate = probe.probeSamples > 0
+                ? probe.probeRateSum / probe.probeSamples
+                : probe.smoothedDownloadRate;
+            const bool meaningfulGain = !hasBaseline
+                || probeAverageRate * 1000 >= probe.probeBaselineRate * (1000 + ProbeMinGainPermille);
+            const bool meaningfulLoss = hasBaseline
+                && probeAverageRate * 1000 < probe.probeBaselineRate * (1000 - ProbeLossPermille);
+
+            if (probeStalled || meaningfulLoss || !meaningfulGain) {
+                probe.targetActivePieces = std::max(MinProbePieces, probe.probeBaselinePieces);
+                probe.probeCooldownSamples = ProbeCooldownSamples;
+            }
+
+            resetProbeWindow();
+            probe.healthySamples = 0;
+        }
+    }
+
+    if (probe.probeCooldownSamples == 0
+        && probe.lowThroughputSamples >= 2
+        && activePieces <= probe.targetActivePieces) {
         probe.targetActivePieces = std::min(MaxProbePieces, probe.targetActivePieces + 2);
-    } else if (probe.healthySamples >= 4 && probe.targetActivePieces > MinProbePieces) {
-        probe.targetActivePieces = std::max(MinProbePieces, probe.targetActivePieces - 1);
+        probe.lowThroughputSamples = 0;
+        resetProbeWindow();
+        resetPreProbeWindow();
+    } else if (!probe.probeActive
+        && probe.probeCooldownSamples == 0
+        && probe.healthySamples >= 3
+        && probe.preProbeRates.size() >= ProbeBaselineSamples
+        && activePieces >= probe.targetActivePieces
+        && probe.targetActivePieces < MaxProbePieces) {
+        probe.probeBaselinePieces = probe.targetActivePieces;
+        probe.probeBaselineRate = probe.preProbeRateSum / probe.preProbeRates.size();
+        probe.probeRateSum = 0;
+        probe.probeSamples = 0;
+        probe.probeActive = true;
+        probe.targetActivePieces = std::min(MaxProbePieces, probe.targetActivePieces + 1);
         probe.healthySamples = 0;
+        resetPreProbeWindow();
     }
 
     QSet<int> nextDeadlinePieces;
-    for (const int piece : healthyActivePieces) {
-        nextDeadlinePieces.insert(piece);
-        if (nextDeadlinePieces.size() >= probe.targetActivePieces) {
-            break;
+    for (const int piece : probe.deadlinePieces) {
+        if (piece >= 0 && piece < pieceCount && !status.pieces.get_bit(lt::piece_index_t(piece))) {
+            nextDeadlinePieces.insert(piece);
         }
     }
-    for (const int piece : activePieceIndexes) {
-        nextDeadlinePieces.insert(piece);
+    for (const int piece : healthyActivePieces) {
         if (nextDeadlinePieces.size() >= probe.targetActivePieces) {
             break;
         }
+        nextDeadlinePieces.insert(piece);
+    }
+    for (const int piece : activePieceIndexes) {
+        if (nextDeadlinePieces.size() >= probe.targetActivePieces) {
+            break;
+        }
+        nextDeadlinePieces.insert(piece);
     }
     for (int piece = 0; piece < pieceCount && nextDeadlinePieces.size() < probe.targetActivePieces; ++piece) {
         if (!status.pieces.get_bit(lt::piece_index_t(piece))) {
             nextDeadlinePieces.insert(piece);
-        }
-    }
-
-    for (const int piece : probe.deadlinePieces) {
-        if (!nextDeadlinePieces.contains(piece)) {
-            handle.reset_piece_deadline(lt::piece_index_t(piece));
         }
     }
     for (const int piece : nextDeadlinePieces) {

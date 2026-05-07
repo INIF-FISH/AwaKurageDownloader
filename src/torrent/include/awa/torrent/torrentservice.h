@@ -3,6 +3,7 @@
 #include "awa/core/downloadmanager.h"
 
 #include <QHash>
+#include <QQueue>
 #include <QSet>
 #include <QStringList>
 #include <QTimer>
@@ -52,9 +53,18 @@ private:
 
     struct PieceProbeState {
         qint64 lastDownloadedBytes = 0;
+        qint64 smoothedDownloadRate = 0;
+        qint64 probeBaselineRate = 0;
+        qint64 probeRateSum = 0;
+        qint64 preProbeRateSum = 0;
+        int probeBaselinePieces = 4;
         int lowThroughputSamples = 0;
         int healthySamples = 0;
+        int probeSamples = 0;
+        int probeCooldownSamples = 0;
         int targetActivePieces = 4;
+        bool probeActive = false;
+        QQueue<qint64> preProbeRates;
         QSet<int> deadlinePieces;
         QSet<int> unhealthyPieces;
     };
