@@ -71,7 +71,10 @@ private:
 
     QString handleId(const libtorrent::torrent_handle& handle) const;
     awa::core::DownloadItem itemFromHandle(const libtorrent::torrent_handle& handle) const;
-    void rememberHandle(const libtorrent::torrent_handle& handle, awa::core::DownloadState initialState);
+    void rememberHandle(
+        const libtorrent::torrent_handle& handle,
+        awa::core::DownloadState initialState,
+        bool emitUpdate = true);
     QString persistenceDir() const;
     QString indexFilePath() const;
     QString resumeDataPath(const QString& id) const;

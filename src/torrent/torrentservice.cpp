@@ -951,7 +951,7 @@ void TorrentService::loadPersistedTasks()
         }
         m_items.insert(stored.id, stored);
 
-        rememberHandle(handle, stored.state);
+        rememberHandle(handle, stored.state, false);
         auto restored = m_items.value(handleId(handle));
         fillMissingTransferSnapshot(restored, stored);
         restored.source = stored.source;
@@ -1788,9 +1788,12 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
         && status.progress_ppm >= 1000000;
     const bool preserveStoredPausedState = !hasTransferSnapshot
         && isPausedState(previousState);
-    const bool preserveStoredCompletedState = !hasTransferSnapshot
-        && (previousState == awa::core::DownloadState::Finished
-            || previousState == awa::core::DownloadState::Seeding);
+    const bool previousStateWasCompleted = isCompletedState(previousState);
+    const bool preserveStoredCompletedState = previousStateWasCompleted
+        && (!hasTransferSnapshot
+            || liveSnapshotWouldResetProgress(storedSnapshot, status)
+            || liveSnapshotWouldResetPieceMap(storedSnapshot, status)
+            || status.progress_ppm < 1000000);
 
     if (m_priorityPausedSeeds.contains(item.id)) {
         item.state = m_seedOnCompletionEnabled
@@ -1855,7 +1858,10 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
     return item;
 }
 
-void TorrentService::rememberHandle(const lt::torrent_handle& handle, awa::core::DownloadState initialState)
+void TorrentService::rememberHandle(
+    const lt::torrent_handle& handle,
+    awa::core::DownloadState initialState,
+    bool emitUpdate)
 {
     if (!handle.is_valid()) {
         return;
@@ -1872,6 +1878,13 @@ void TorrentService::rememberHandle(const lt::torrent_handle& handle, awa::core:
     if (item.state == awa::core::DownloadState::Queued) {
         item.state = initialState;
     }
+    const auto existing = m_items.value(id);
+    if (isCompletedState(existing.state) && !isCompletedState(item.state)) {
+        item.state = existing.state;
+        item.statusText = existing.statusText;
+        item.downloadRate = 0;
+        item.uploadRate = 0;
+    }
     if (item.name.isEmpty()) {
         item.name = QStringLiteral("Magnet %1").arg(id.left(12));
     }
@@ -1882,7 +1895,9 @@ void TorrentService::rememberHandle(const lt::torrent_handle& handle, awa::core:
         item.statusText = awa::core::stateToString(item.state);
     }
     m_items.insert(id, item);
-    emit itemUpdated(item);
+    if (emitUpdate) {
+        emit itemUpdated(item);
+    }
 }
 
 QString TorrentService::persistenceDir() const
