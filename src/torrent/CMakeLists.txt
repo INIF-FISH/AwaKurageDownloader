@@ -1,5 +1,6 @@
 qt_add_library(awa_torrent STATIC
     include/awa/torrent/magnetutils.h
+    include/awa/torrent/taskstate.h
     include/awa/torrent/torrentservice.h
     magnetutils.cpp
     torrentservice.cpp

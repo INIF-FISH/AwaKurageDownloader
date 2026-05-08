@@ -1,6 +1,7 @@
 #pragma once
 
 #include "awa/core/downloadmanager.h"
+#include "awa/torrent/taskstate.h"
 
 #include <QHash>
 #include <QQueue>
@@ -14,12 +15,6 @@
 #include <memory>
 
 namespace awa::torrent {
-
-enum class PauseOwner {
-    None,
-    User,
-    Scheduler
-};
 
 class TorrentService final : public awa::core::TorrentBackend {
     Q_OBJECT
