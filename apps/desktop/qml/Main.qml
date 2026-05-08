@@ -1004,8 +1004,8 @@ ApplicationWindow {
                                     Rectangle {
                                         anchors.fill: parent
                                         radius: 6
-                                        color: AwaTheme.primaryPale
-                                        border.color: AwaTheme.border
+                                        color: "transparent"
+                                        border.width: 0
                                     }
 
                                     Flickable {

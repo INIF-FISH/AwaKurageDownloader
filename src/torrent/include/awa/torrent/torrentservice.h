@@ -15,6 +15,12 @@
 
 namespace awa::torrent {
 
+enum class PauseOwner {
+    None,
+    User,
+    Scheduler
+};
+
 class TorrentService final : public awa::core::TorrentBackend {
     Q_OBJECT
 
@@ -84,6 +90,8 @@ private:
     void applyTrackers(libtorrent::add_torrent_params& params) const;
     void applyTrackersToHandle(const libtorrent::torrent_handle& handle) const;
     bool shouldIgnoreId(const QString& id) const;
+    PauseOwner pauseOwner(const QString& id) const;
+    void setPauseOwner(const QString& id, PauseOwner owner);
     int trackerHealthScore(const QString& tracker) const;
     void recordTrackerResult(const QString& tracker, bool success, int peers = 0);
     void reprioritizeTrackers();
@@ -109,9 +117,8 @@ private:
     QHash<QString, int> m_metadataRetryCounts;
     QHash<QString, TrackerHealth> m_trackerHealth;
     QHash<QString, PieceProbeState> m_pieceProbes;
+    QHash<QString, PauseOwner> m_pauseOwners;
     QSet<QString> m_removedIds;
-    QSet<QString> m_userPausedIds;
-    QSet<QString> m_schedulerPausedIds;
     QSet<QString> m_priorityPausedSeeds;
     QStringList m_defaultTrackers;
     bool m_persistedTasksLoaded = false;
