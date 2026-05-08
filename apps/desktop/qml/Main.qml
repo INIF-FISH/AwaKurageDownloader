@@ -896,7 +896,6 @@ ApplicationWindow {
                         id: detailScrollView
                         anchors.fill: parent
                         anchors.margins: 22
-                        anchors.topMargin: 64
                         clip: true
                         ScrollBar.vertical.policy: ScrollBar.AlwaysOff
                         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -911,7 +910,7 @@ ApplicationWindow {
                                 color: AwaTheme.ink
                                 font.pixelSize: 19
                                 font.weight: Font.DemiBold
-                                elide: Text.ElideRight
+                                wrapMode: Text.Wrap
                             }
                         ProgressBar {
                             Layout.fillWidth: true
@@ -1148,6 +1147,7 @@ ApplicationWindow {
                         implicitWidth: 34
                         implicitHeight: 34
                         z: 2
+                        tone: "ghost"
                         text: "X"
                         ToolTip.visible: hovered
                         ToolTip.text: I18n.tr("关闭详情", "Close Details")
