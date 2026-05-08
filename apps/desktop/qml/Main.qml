@@ -36,7 +36,7 @@ ApplicationWindow {
     readonly property bool selectedIsComplete: selectedDownload.isComplete === true
     readonly property string selectedStateText: selectedDownload.stateText || ""
     readonly property bool selectedIsPaused: selectedState === 3 || selectedState === 7
-    readonly property bool selectedIsTerminal: selectedIsComplete || selectedState === 6
+    readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6
     readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
     readonly property var pageTitles: [

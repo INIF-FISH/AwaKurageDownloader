@@ -33,6 +33,7 @@ Rectangle {
     readonly property bool completed: isComplete
     readonly property bool seeding: state === 4 || state === 7
     readonly property bool finished: state === 5
+    readonly property bool terminal: state === 5 || state === 6
     readonly property bool paused: state === 3 || state === 7
     readonly property bool waiting: state === 8
     readonly property color rowColor: selected
@@ -278,7 +279,7 @@ Rectangle {
                 Layout.preferredWidth: 36
                 Layout.preferredHeight: 36
                 text: "||"
-                visible: !rowRoot.completed
+                visible: !rowRoot.terminal && !rowRoot.paused
                 enabled: rowRoot.downloadId.length > 0 && !rowRoot.paused
                 ToolTip.visible: hovered
                 ToolTip.text: I18n.tr("暂停", "Pause")
@@ -289,7 +290,7 @@ Rectangle {
                 Layout.preferredHeight: 36
                 text: "▶"
                 tone: "primary"
-                visible: !rowRoot.completed
+                visible: !rowRoot.terminal && rowRoot.paused
                 enabled: rowRoot.downloadId.length > 0 && rowRoot.paused
                 ToolTip.visible: hovered
                 ToolTip.text: I18n.tr("继续", "Resume")

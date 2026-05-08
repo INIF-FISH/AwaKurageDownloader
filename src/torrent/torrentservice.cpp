@@ -1007,43 +1007,24 @@ void TorrentService::loadPersistedTasks()
                 || (resumeDataPaused && !schedulerPaused);
         applyResumeTransferSnapshot(stored, params);
 
-        auto restoreSchedulerPause = [&]() {
-            if (!schedulerPaused || userPaused) {
-                return;
-            }
-
-            setPauseOwner(stored.id, PauseOwner::Scheduler);
-            if (m_handles.contains(stored.id)) {
-                auto handle = m_handles.value(stored.id);
-                handle.set_flags(lt::torrent_flags::paused);
-                handle.pause();
-            }
-
-            auto item = m_items.value(stored.id);
-            if (item.id.isEmpty()) {
-                return;
-            }
-            item.state = awa::core::DownloadState::Waiting;
-            item.statusText = QStringLiteral("等待可用下载槽");
-            item.downloadRate = 0;
-            item.uploadRate = 0;
-            m_items.insert(stored.id, item);
-            emit itemUpdated(item);
-        };
-
         if (ec || (!params.ti && params.info_hashes == lt::info_hash_t {})) {
             if (stored.source.startsWith(QStringLiteral("magnet:"), Qt::CaseInsensitive)) {
-                awa::core::DownloadOptions options;
-                options.savePath = stored.savePath;
-                options.startPaused = userPaused || schedulerPaused;
-                addMagnet(stored.source, options);
-                restoreSchedulerPause();
+                ec.clear();
+                const QString normalizedUri = normalizeMagnetUri(stored.source.trimmed());
+                params = lt::parse_magnet_uri(normalizedUri.toStdString(), ec);
+                if (!ec) {
+                    stored.source = normalizedUri;
+                    params.flags &= ~lt::torrent_flags::duplicate_is_error;
+                    params.dht_nodes.emplace_back("router.bittorrent.com", 6881);
+                    params.dht_nodes.emplace_back("dht.transmissionbt.com", 6881);
+                    params.dht_nodes.emplace_back("router.utorrent.com", 6881);
+                    params.dht_nodes.emplace_back("dht.aelitis.com", 6881);
+                    params.dht_nodes.emplace_back("dht.libtorrent.org", 25401);
+                }
             } else if (QFileInfo::exists(stored.source)) {
-                awa::core::DownloadOptions options;
-                options.savePath = stored.savePath;
-                options.startPaused = userPaused || schedulerPaused;
-                addTorrentFile(stored.source, options);
-                restoreSchedulerPause();
+                ec.clear();
+                params = lt::add_torrent_params {};
+                params.ti = std::make_shared<lt::torrent_info>(stored.source.toStdString(), ec);
             } else {
                 stored.state = awa::core::DownloadState::Error;
                 stored.isComplete = false;
@@ -1051,8 +1032,18 @@ void TorrentService::loadPersistedTasks()
                 stored.statusText = stored.errorText;
                 m_items.insert(stored.id, stored);
                 emit itemUpdated(stored);
+                continue;
             }
-            continue;
+
+            if (ec || (!params.ti && params.info_hashes == lt::info_hash_t {})) {
+                stored.state = awa::core::DownloadState::Error;
+                stored.isComplete = false;
+                stored.errorText = QStringLiteral("任务来源不可用，无法恢复");
+                stored.statusText = stored.errorText;
+                m_items.insert(stored.id, stored);
+                emit itemUpdated(stored);
+                continue;
+            }
         }
 
         if (!stored.savePath.isEmpty()) {
