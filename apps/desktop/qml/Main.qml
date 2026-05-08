@@ -33,9 +33,10 @@ ApplicationWindow {
     property var downloadTabSnapshot: ({})
     readonly property bool hasSelectedDownload: selectedDownloadId.length > 0
     readonly property int selectedState: selectedDownload.state === undefined ? -1 : selectedDownload.state
+    readonly property bool selectedIsComplete: selectedDownload.isComplete === true
     readonly property string selectedStateText: selectedDownload.stateText || ""
     readonly property bool selectedIsPaused: selectedState === 3 || selectedState === 7
-    readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6
+    readonly property bool selectedIsTerminal: selectedIsComplete || selectedState === 6
     readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
     readonly property var pageTitles: [
@@ -117,15 +118,15 @@ ApplicationWindow {
             : ((completedPieces || 0) + " / " + (pieceCount || 0) + " 个分块")
     }
 
-    function isCompletedState(state) {
-        return state === 4 || state === 5 || state === 7
+    function isCompletedDownload(item) {
+        return item && item.isComplete === true
     }
 
     function matchesDownloadSection(item) {
         if (!item || item.state === undefined) {
             return false
         }
-        return downloadSectionTab === 0 ? !isCompletedState(item.state) : isCompletedState(item.state)
+        return downloadSectionTab === 0 ? !isCompletedDownload(item) : isCompletedDownload(item)
     }
 
     function filteredDownloadCount() {
@@ -143,7 +144,7 @@ ApplicationWindow {
         if (!item || item.state === undefined) {
             return -1
         }
-        return isCompletedState(item.state) ? 1 : 0
+        return isCompletedDownload(item) ? 1 : 0
     }
 
     function markCurrentDownloadTabSeen() {

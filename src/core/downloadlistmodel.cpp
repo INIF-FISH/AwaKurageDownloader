@@ -63,6 +63,7 @@ QVariant DownloadListModel::data(const QModelIndex& index, int role) const
     case DownloadedBytesRole: return item.downloadedBytes;
     case DownloadRateRole: return item.downloadRate;
     case UploadRateRole: return item.uploadRate;
+    case IsCompleteRole: return item.isComplete;
     case PieceCountRole: return item.pieceCount;
     case CompletedPiecesRole: return item.completedPieces;
     case BlockSizeRole: return item.blockSize;
@@ -96,6 +97,7 @@ QHash<int, QByteArray> DownloadListModel::roleNames() const
         {DownloadedBytesRole, "downloadedBytes"},
         {DownloadRateRole, "downloadRate"},
         {UploadRateRole, "uploadRate"},
+        {IsCompleteRole, "isComplete"},
         {PieceCountRole, "pieceCount"},
         {CompletedPiecesRole, "completedPieces"},
         {BlockSizeRole, "blockSize"},
@@ -186,6 +188,7 @@ void DownloadListModel::upsert(const DownloadItem& item)
     if (previous.downloadedBytes != item.downloadedBytes) changedRoles.append(DownloadedBytesRole);
     if (previous.downloadRate != item.downloadRate) changedRoles.append(DownloadRateRole);
     if (previous.uploadRate != item.uploadRate) changedRoles.append(UploadRateRole);
+    if (previous.isComplete != item.isComplete) changedRoles.append(IsCompleteRole);
     if (previous.pieceCount != item.pieceCount) changedRoles.append(PieceCountRole);
     if (previous.completedPieces != item.completedPieces) changedRoles.append(CompletedPiecesRole);
     if (previous.blockSize != item.blockSize) changedRoles.append(BlockSizeRole);

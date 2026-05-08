@@ -23,6 +23,7 @@ public:
         DownloadedBytesRole,
         DownloadRateRole,
         UploadRateRole,
+        IsCompleteRole,
         PieceCountRole,
         CompletedPiecesRole,
         BlockSizeRole,

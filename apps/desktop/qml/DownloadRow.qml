@@ -14,6 +14,7 @@ Rectangle {
     readonly property real progress: itemData.progress || 0
     readonly property real downloadRate: itemData.downloadRate || 0
     readonly property real uploadRate: itemData.uploadRate || 0
+    readonly property bool isComplete: itemData.isComplete === true
     readonly property real totalBytes: itemData.totalBytes || 0
     readonly property real downloadedBytes: itemData.downloadedBytes || 0
     readonly property int pieceCount: itemData.pieceCount || 0
@@ -29,7 +30,7 @@ Rectangle {
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
     readonly property real remainingBytes: Math.max(0, totalBytes - downloadedBytes)
     readonly property real etaSeconds: downloadRate > 0 && remainingBytes > 0 ? remainingBytes / downloadRate : -1
-    readonly property bool completed: state === 4 || state === 5 || state === 7 || (totalBytes > 0 && progress >= 0.999)
+    readonly property bool completed: isComplete
     readonly property bool seeding: state === 4 || state === 7
     readonly property bool finished: state === 5
     readonly property bool paused: state === 3 || state === 7
@@ -122,6 +123,7 @@ Rectangle {
             "downloadedBytes": downloadedBytes,
             "downloadRate": downloadRate,
             "uploadRate": uploadRate,
+            "isComplete": isComplete,
             "pieceCount": pieceCount,
             "completedPieces": completedPieces,
             "pieceMap": pieceMap,

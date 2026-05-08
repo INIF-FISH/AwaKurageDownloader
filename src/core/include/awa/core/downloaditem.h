@@ -39,6 +39,7 @@ struct DownloadItem {
     qint64 downloadedBytes = 0;
     qint64 downloadRate = 0;
     qint64 uploadRate = 0;
+    bool isComplete = false;
     int pieceCount = 0;
     int completedPieces = 0;
     int blockSize = 0;
