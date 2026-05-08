@@ -53,7 +53,9 @@ public:
         if (input.complete && !input.seedOnCompletionEnabled) {
             return result(awa::core::DownloadState::Finished);
         }
-        if (input.complete && isCompletedState(input.previousState)) {
+        if (input.complete
+            && isCompletedState(input.previousState)
+            && !isPausedState(input.previousState)) {
             return result(input.previousState);
         }
         if (input.complete) {
@@ -67,10 +69,6 @@ public:
         }
 
         if (isCompletedState(input.previousState)) {
-            return result(input.previousState);
-        }
-
-        if (!input.hasReliableLiveState && isPausedState(input.previousState)) {
             return result(input.previousState);
         }
 

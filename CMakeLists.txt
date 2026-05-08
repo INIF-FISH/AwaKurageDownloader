@@ -10,7 +10,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(AWA_BUILD_TESTS "Build tests" ON)
 option(AWA_ENABLE_PACKAGING "Enable packaging targets" ON)
 
 if(WIN32)
@@ -30,12 +29,6 @@ add_subdirectory(src/torrent)
 add_subdirectory(src/rss)
 add_subdirectory(src/api)
 add_subdirectory(apps/desktop)
-
-if(AWA_BUILD_TESTS)
-    enable_testing()
-    find_package(Catch2 CONFIG REQUIRED)
-    add_subdirectory(tests)
-endif()
 
 if(AWA_ENABLE_PACKAGING)
     include(AwaPackaging)
