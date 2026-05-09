@@ -7,9 +7,9 @@ ToolButton {
 
     property string tone: "neutral"
 
-    implicitWidth: 36
-    implicitHeight: 36
-    font.pixelSize: 14
+    implicitWidth: 32
+    implicitHeight: 32
+    font.pixelSize: 12
     font.weight: Font.DemiBold
     padding: 0
     hoverEnabled: enabled

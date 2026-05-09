@@ -8,34 +8,34 @@ Button {
     property bool active: false
 
     flat: true
-    height: 46
-    leftPadding: 14
-    rightPadding: 14
-    font.pixelSize: 14
+    height: 38
+    leftPadding: 12
+    rightPadding: 12
+    font.pixelSize: 13
 
     contentItem: Item {
-        implicitHeight: 34
+        implicitHeight: 30
         Text {
             id: iconLabel
             text: control.iconText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            font.pixelSize: 16
+            font.pixelSize: 14
             font.weight: Font.DemiBold
             color: control.active ? "white" : "#315a7d"
-            width: 28
+            width: 24
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
         Text {
             anchors.left: iconLabel.right
-            anchors.leftMargin: 9
+            anchors.leftMargin: 8
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: control.text
             color: control.active ? "white" : "#244968"
-            font.pixelSize: 14
+            font.pixelSize: 13
             font.weight: control.active ? Font.DemiBold : Font.Normal
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
@@ -56,8 +56,8 @@ Button {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.left: parent.left
-            anchors.topMargin: 9
-            anchors.bottomMargin: 9
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
         }
         Behavior on color { ColorAnimation { duration: 140 } }
     }

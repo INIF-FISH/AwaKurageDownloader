@@ -17,6 +17,9 @@
 #include <QQmlContext>
 #include <QAction>
 #include <QApplication>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QLockFile>
 #include <QMenu>
 #include <QPointer>
 #include <QQuickStyle>
@@ -24,6 +27,8 @@
 #include <QSystemTrayIcon>
 #include <QUrl>
 #include <QWindow>
+
+#include <memory>
 
 namespace {
 class TrayController : public QObject
@@ -88,6 +93,21 @@ public:
     void setMainWindow(QWindow* window)
     {
         m_mainWindow = window;
+        if (m_showRequested) {
+            m_showRequested = false;
+            showMainWindow();
+        }
+    }
+
+    void showMainWindow()
+    {
+        if (!m_mainWindow) {
+            m_showRequested = true;
+            return;
+        }
+        m_mainWindow->show();
+        m_mainWindow->raise();
+        m_mainWindow->requestActivate();
     }
 
     Q_INVOKABLE bool closeToTray(QWindow* window)
@@ -136,16 +156,6 @@ public:
     }
 
 private slots:
-    void showMainWindow()
-    {
-        if (!m_mainWindow) {
-            return;
-        }
-        m_mainWindow->show();
-        m_mainWindow->raise();
-        m_mainWindow->requestActivate();
-    }
-
     void quitFromTray()
     {
         m_trayIcon->hide();
@@ -192,7 +202,60 @@ private:
     QAction* m_quitAction = nullptr;
     TrayText m_text;
     bool m_closeMessageShown = false;
+    bool m_showRequested = false;
 };
+
+constexpr auto singleInstanceServerName = "AwaKurageDownloader.SingleInstance";
+
+QString singleInstanceLockPath()
+{
+    QString lockDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    if (lockDir.isEmpty()) {
+        lockDir = QDir::tempPath();
+    }
+    QDir().mkpath(lockDir);
+    return QDir(lockDir).filePath(QStringLiteral("AwaKurageDownloader.lock"));
+}
+
+std::unique_ptr<QLockFile> createSingleInstanceLock()
+{
+    auto lock = std::make_unique<QLockFile>(singleInstanceLockPath());
+    if (!lock->tryLock(100)) {
+        return {};
+    }
+    return lock;
+}
+
+bool notifyRunningInstance()
+{
+    QLocalSocket socket;
+    socket.connectToServer(QString::fromLatin1(singleInstanceServerName), QIODevice::WriteOnly);
+    if (!socket.waitForConnected(300)) {
+        return false;
+    }
+
+    socket.write("show\n");
+    socket.flush();
+    socket.waitForBytesWritten(300);
+    return true;
+}
+
+std::unique_ptr<QLocalServer> createSingleInstanceServer()
+{
+    auto server = std::make_unique<QLocalServer>();
+    server->setSocketOptions(QLocalServer::UserAccessOption);
+
+    if (server->listen(QString::fromLatin1(singleInstanceServerName))) {
+        return server;
+    }
+
+    QLocalServer::removeServer(QString::fromLatin1(singleInstanceServerName));
+    if (server->listen(QString::fromLatin1(singleInstanceServerName))) {
+        return server;
+    }
+
+    return {};
+}
 
 void installStartupLogger()
 {
@@ -237,6 +300,13 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("AwaKurageDownloader"));
     QApplication::setOrganizationName(QStringLiteral("AwaKurage"));
     QApplication::setApplicationVersion(QStringLiteral("0.1.1"));
+
+    auto singleInstanceLock = createSingleInstanceLock();
+    if (!singleInstanceLock) {
+        notifyRunningInstance();
+        return 0;
+    }
+    auto singleInstanceServer = createSingleInstanceServer();
 
     const QString packagedLogoPngPath = QApplication::applicationDirPath() + QStringLiteral("/resources/APP.png");
     const QString logoPath = QFileInfo::exists(packagedLogoPngPath)
@@ -289,6 +359,16 @@ int main(int argc, char* argv[])
         &trayController, &TrayController::setLanguage);
     QObject::connect(&manager, &awa::core::DownloadManager::downloadCompleted,
         &trayController, &TrayController::showDownloadCompleted);
+    if (singleInstanceServer) {
+        QObject::connect(singleInstanceServer.get(), &QLocalServer::newConnection, &trayController, [&trayController, server = singleInstanceServer.get()] {
+            while (auto* socket = server->nextPendingConnection()) {
+                QObject::connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
+                socket->readAll();
+                socket->disconnectFromServer();
+            }
+            trayController.showMainWindow();
+        });
+    }
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("downloadManager"), &manager);
     engine.rootContext()->setContextProperty(QStringLiteral("settingsService"), &settings);

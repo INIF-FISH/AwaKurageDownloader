@@ -577,7 +577,7 @@ ApplicationWindow {
         spacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 286
+            Layout.preferredWidth: 236
             Layout.fillHeight: true
             color: "#fafdff"
             border.width: 0
@@ -592,19 +592,19 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 22
-                anchors.rightMargin: 22
-                anchors.topMargin: 24
-                anchors.bottomMargin: 20
-                spacing: 18
+                anchors.leftMargin: 18
+                anchors.rightMargin: 18
+                anchors.topMargin: 18
+                anchors.bottomMargin: 16
+                spacing: 14
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
                     Image {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: 108
-                        Layout.preferredHeight: 108
+                        Layout.preferredWidth: 82
+                        Layout.preferredHeight: 82
                         source: appLogoSource
                         fillMode: Image.PreserveAspectFit
                         smooth: true
@@ -613,7 +613,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: "AwaKurage"
                         color: AwaTheme.ink
-                        font.pixelSize: 23
+                        font.pixelSize: 19
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -621,7 +621,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: I18n.tr("BT下载器", "BT Downloader")
                         color: AwaTheme.muted
-                        font.pixelSize: 12
+                        font.pixelSize: 11
                         horizontalAlignment: Text.AlignHCenter
                         elide: Text.ElideRight
                     }
@@ -629,7 +629,7 @@ ApplicationWindow {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
                     SidebarButton { Layout.fillWidth: true; text: I18n.tr("下载任务", "Downloads"); iconText: "↓"; active: currentPage === 0; onClicked: currentPage = 0 }
                     SidebarButton { Layout.fillWidth: true; text: I18n.tr("RSS 订阅", "RSS"); iconText: "≋"; active: currentPage === 1; onClicked: currentPage = 1 }
                     SidebarButton { Layout.fillWidth: true; text: I18n.tr("远程 API", "Remote API"); iconText: "{}"; active: currentPage === 2; onClicked: currentPage = 2 }
@@ -640,27 +640,27 @@ ApplicationWindow {
 
                 Panel {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 158
+                    Layout.preferredHeight: 126
                     clip: true
                     Image {
                         source: appQPosterSource
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        anchors.rightMargin: -34
-                        anchors.bottomMargin: -42
-                        width: 150
-                        height: 150
-                        opacity: 0.42
+                        anchors.rightMargin: -28
+                        anchors.bottomMargin: -36
+                        width: 124
+                        height: 124
+                        opacity: 0.36
                         fillMode: Image.PreserveAspectFit
                         smooth: true
                     }
                     Column {
                         anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 7
-                        Text { text: I18n.tr("本地 API", "Local API"); color: AwaTheme.ink; font.pixelSize: 13; font.weight: Font.DemiBold }
-                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: AwaTheme.inkSoft; font.pixelSize: 12; elide: Text.ElideRight }
-                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: AwaTheme.muted; font.pixelSize: 11; elide: Text.ElideRight }
+                        anchors.margins: 12
+                        spacing: 5
+                        Text { text: I18n.tr("本地 API", "Local API"); color: AwaTheme.ink; font.pixelSize: 12; font.weight: Font.DemiBold }
+                        Text { width: parent.width; text: "127.0.0.1:" + apiServer.port; color: AwaTheme.inkSoft; font.pixelSize: 11; elide: Text.ElideRight }
+                        Text { width: parent.width; text: "WebSocket: " + (apiServer.port + 1); color: AwaTheme.muted; font.pixelSize: 10; elide: Text.ElideRight }
                     }
                 }
             }
@@ -673,7 +673,7 @@ ApplicationWindow {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: currentPage === 0 ? 122 : 86
+                Layout.preferredHeight: currentPage === 0 ? 96 : 74
                 color: "#fafdff"
                 border.width: 0
 
@@ -687,19 +687,19 @@ ApplicationWindow {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 28
-                    anchors.rightMargin: 28
-                    spacing: 12
+                    anchors.leftMargin: 24
+                    anchors.rightMargin: 24
+                    spacing: 10
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: currentPage === 0 ? 8 : 3
-                        Text { text: pageTitles[currentPage]; color: AwaTheme.ink; font.pixelSize: 25; font.weight: Font.DemiBold }
+                        spacing: currentPage === 0 ? 6 : 2
+                        Text { text: pageTitles[currentPage]; color: AwaTheme.ink; font.pixelSize: 22; font.weight: Font.DemiBold }
                         Rectangle {
                             visible: currentPage === 0
                             Layout.topMargin: 0
-                            Layout.preferredHeight: 40
-                            Layout.preferredWidth: 360
+                            Layout.preferredHeight: 34
+                            Layout.preferredWidth: 320
                             radius: AwaTheme.radiusMd
                             color: "#edf4fb"
                             border.color: "#d7e3ef"
@@ -707,12 +707,12 @@ ApplicationWindow {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 4
+                                anchors.margins: 3
                                 spacing: 0
 
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 32
+                                    Layout.preferredHeight: 28
                                     radius: AwaTheme.radiusSm
                                     color: downloadSectionTab === 0 ? "#ffffff" : "transparent"
                                     border.width: downloadSectionTab === 0 ? 1 : 0
@@ -722,7 +722,7 @@ ApplicationWindow {
                                         anchors.centerIn: parent
                                         text: downloadTabLabel(I18n.tr("下载中", "Active"), downloadingCount, downloadingUnseenCount)
                                         color: downloadSectionTab === 0 ? AwaTheme.ink : AwaTheme.inkSoft
-                                        font.pixelSize: 13
+                                        font.pixelSize: 12
                                         font.weight: downloadSectionTab === 0 ? Font.DemiBold : Font.Medium
                                         elide: Text.ElideRight
                                     }
@@ -740,7 +740,7 @@ ApplicationWindow {
 
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 32
+                                    Layout.preferredHeight: 28
                                     radius: AwaTheme.radiusSm
                                     color: downloadSectionTab === 1 ? "#ffffff" : "transparent"
                                     border.width: downloadSectionTab === 1 ? 1 : 0
@@ -750,7 +750,7 @@ ApplicationWindow {
                                         anchors.centerIn: parent
                                         text: downloadTabLabel(I18n.tr("已完成", "Completed"), completedCount, completedUnseenCount)
                                         color: downloadSectionTab === 1 ? AwaTheme.ink : AwaTheme.inkSoft
-                                        font.pixelSize: 13
+                                        font.pixelSize: 12
                                         font.weight: downloadSectionTab === 1 ? Font.DemiBold : Font.Medium
                                         elide: Text.ElideRight
                                     }
@@ -773,7 +773,7 @@ ApplicationWindow {
 
                     RowLayout {
                         visible: currentPage === 0
-                        spacing: 12
+                        spacing: 10
 
                         AcidButton {
                             text: I18n.tr("添加磁力", "Add Magnet")
@@ -821,10 +821,10 @@ ApplicationWindow {
                     ListView {
                         id: listView
                         anchors.fill: parent
-                        anchors.leftMargin: 22
-                        anchors.rightMargin: 22
-                        anchors.topMargin: 14
-                        anchors.bottomMargin: 22
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        anchors.topMargin: 12
+                        anchors.bottomMargin: 18
                         spacing: 0
                         clip: true
                         model: downloadManager.downloads
@@ -835,7 +835,7 @@ ApplicationWindow {
                         }
                         delegate: Item {
                             width: ListView.view.width
-                            height: matchesDownloadSection(itemData) ? 130 : 0
+                            height: matchesDownloadSection(itemData) ? 112 : 0
                             visible: height > 0
                             property var itemData: {
                                 downloadsRevision
@@ -844,7 +844,7 @@ ApplicationWindow {
 
                             DownloadRow {
                                 width: parent.width
-                                height: 118
+                                height: 102
                                 itemData: parent.itemData
                                 rowIndex: index
                                 selected: selectedDownloadId === itemData.downloadId
@@ -859,16 +859,16 @@ ApplicationWindow {
                         Panel {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
-                            anchors.leftMargin: Math.max(28, Math.round(parent.width * 0.1))
-                            width: Math.min(460, parent.width - 56)
-                            height: 236
+                            anchors.leftMargin: Math.max(24, Math.round(parent.width * 0.09))
+                            width: Math.min(420, parent.width - 48)
+                            height: 204
                             visible: filteredDownloadCount() === 0
                             ColumnLayout {
                                 anchors.fill: parent
-                                anchors.margins: 24
-                                spacing: 14
-                                Text { text: downloadSectionTab === 0 ? I18n.tr("暂无下载中的任务", "No Active Tasks") : I18n.tr("暂无已完成的任务", "No Completed Tasks"); color: AwaTheme.ink; font.pixelSize: 24; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
-                                Text { Layout.fillWidth: true; text: downloadSectionTab === 0 ? I18n.tr("拖入 .torrent 文件，或添加磁力链接", "Drop a .torrent file here, or add a magnet link") : I18n.tr("完成后的任务会出现在这里", "Finished tasks will appear here"); color: AwaTheme.muted; font.pixelSize: 14; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                anchors.margins: 22
+                                spacing: 12
+                                Text { text: downloadSectionTab === 0 ? I18n.tr("暂无下载中的任务", "No Active Tasks") : I18n.tr("暂无已完成的任务", "No Completed Tasks"); color: AwaTheme.ink; font.pixelSize: 20; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignHCenter }
+                                Text { Layout.fillWidth: true; text: downloadSectionTab === 0 ? I18n.tr("拖入 .torrent 文件，或添加磁力链接", "Drop a .torrent file here, or add a magnet link") : I18n.tr("完成后的任务会出现在这里", "Finished tasks will appear here"); color: AwaTheme.muted; font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                 RowLayout {
                                     visible: downloadSectionTab === 0
                                     Layout.alignment: Qt.AlignHCenter

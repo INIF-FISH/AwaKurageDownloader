@@ -132,7 +132,7 @@ Rectangle {
         }
     }
 
-    height: 118
+    height: 102
     radius: AwaTheme.radiusMd
     clip: true
     color: rowColor
@@ -151,19 +151,19 @@ Rectangle {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 14
+        anchors.margins: 12
+        spacing: 12
 
         Rectangle {
-            Layout.preferredWidth: 48
-            Layout.preferredHeight: 48
-            radius: 12
+            Layout.preferredWidth: 40
+            Layout.preferredHeight: 40
+            radius: 10
             color: badgeColor
             border.width: 0
             Text {
                 anchors.centerIn: parent
                 text: rowRoot.finished ? "OK" : rowRoot.seeding ? "SE" : rowRoot.waiting ? "WT" : "BT"
-                font.pixelSize: 13
+                font.pixelSize: 12
                 font.weight: Font.DemiBold
                 color: badgeTextColor
             }
@@ -173,14 +173,14 @@ Rectangle {
             Layout.fillWidth: true
             Layout.minimumWidth: 240
             Layout.preferredWidth: 640
-            spacing: 8
+            spacing: 7
             Text {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 Layout.maximumWidth: parent.width
                 text: rowRoot.displayName
                 color: AwaTheme.ink
-                font.pixelSize: 14
+                font.pixelSize: 13
                 font.weight: Font.DemiBold
                 maximumLineCount: 1
                 wrapMode: Text.NoWrap
@@ -215,7 +215,7 @@ Rectangle {
                 Text {
                     text: rowRoot.progressPercent + "%"
                     color: AwaTheme.inkSoft
-                    font.pixelSize: 12
+                    font.pixelSize: 11
                     Layout.preferredWidth: 42
                     horizontalAlignment: Text.AlignRight
                 }
@@ -226,7 +226,7 @@ Rectangle {
                 Layout.maximumWidth: parent.width
                 text: rowRoot.formatBytes(rowRoot.downloadedBytes) + " / " + rowRoot.formatBytes(rowRoot.totalBytes) + " - " + rowRoot.displayStatus
                 color: AwaTheme.muted
-                font.pixelSize: 12
+                font.pixelSize: 11
                 maximumLineCount: 1
                 wrapMode: Text.NoWrap
                 elide: Text.ElideRight
@@ -234,14 +234,14 @@ Rectangle {
         }
 
         ColumnLayout {
-            Layout.preferredWidth: 132
-            Layout.minimumWidth: 132
-            spacing: 6
+            Layout.preferredWidth: 118
+            Layout.minimumWidth: 118
+            spacing: 5
             Text {
                 Layout.fillWidth: true
                 text: "↓ " + rowRoot.downloadKiB + " KiB/s"
                 color: rowRoot.completed ? rowRoot.progressFillColor : AwaTheme.primary
-                font.pixelSize: 12
+                font.pixelSize: 11
                 font.weight: Font.DemiBold
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
@@ -250,7 +250,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: "↑ " + rowRoot.uploadKiB + " KiB/s"
                 color: rowRoot.finished ? "#15803d" : rowRoot.seeding ? "#0f766e" : "#16a34a"
-                font.pixelSize: 12
+                font.pixelSize: 11
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
@@ -258,7 +258,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: rowRoot.localizedStateText()
                 color: AwaTheme.muted
-                font.pixelSize: 11
+                font.pixelSize: 10
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
@@ -266,18 +266,18 @@ Rectangle {
                 Layout.fillWidth: true
                 text: I18n.tr("预计 ", "ETA ") + rowRoot.formatDuration(rowRoot.etaSeconds)
                 color: AwaTheme.muted
-                font.pixelSize: 11
+                font.pixelSize: 10
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
         }
 
         RowLayout {
-            Layout.preferredWidth: 118
+            Layout.preferredWidth: 104
             spacing: 4
             AcidToolButton {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
                 text: "||"
                 visible: !rowRoot.terminal && !rowRoot.paused
                 enabled: rowRoot.downloadId.length > 0 && !rowRoot.paused
@@ -286,8 +286,8 @@ Rectangle {
                 onClicked: rowRoot.pauseTask(rowRoot.downloadId)
             }
             AcidToolButton {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
                 text: "▶"
                 tone: "primary"
                 visible: !rowRoot.terminal && rowRoot.paused
@@ -297,8 +297,8 @@ Rectangle {
                 onClicked: rowRoot.resumeTask(rowRoot.downloadId)
             }
             AcidToolButton {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
                 text: "\uD83D\uDCC1"
                 tone: "primary"
                 visible: rowRoot.completed
@@ -308,8 +308,8 @@ Rectangle {
                 onClicked: rowRoot.openFolder(rowRoot.downloadId)
             }
             AcidToolButton {
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
                 text: "i"
                 ToolTip.visible: hovered
                 ToolTip.text: I18n.tr("详情", "Details")

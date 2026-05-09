@@ -7,13 +7,13 @@ Button {
 
     property string tone: "neutral"
 
-    implicitHeight: 40
-    implicitWidth: Math.max(96, contentItem.implicitWidth + leftPadding + rightPadding)
-    leftPadding: 18
-    rightPadding: 18
-    topPadding: 8
-    bottomPadding: 8
-    font.pixelSize: 13
+    implicitHeight: 34
+    implicitWidth: Math.max(84, contentItem.implicitWidth + leftPadding + rightPadding)
+    leftPadding: 14
+    rightPadding: 14
+    topPadding: 6
+    bottomPadding: 6
+    font.pixelSize: 12
     font.weight: Font.DemiBold
     flat: true
     hoverEnabled: enabled
