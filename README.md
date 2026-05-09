@@ -16,9 +16,9 @@ AwaKurageDownloader 是一个基于 Qt 6 和 libtorrent 的桌面 BitTorrent 下
 
 ## 项目状态
 
-当前版本是 `0.1.1`，仍处在早期开发阶段。核心结构已经拆分完成，桌面端、BT 会话、RSS 服务、本地 API 和设置管理都在独立模块中维护，但功能细节和界面文本仍会继续打磨。
+当前版本是 `0.1.2`，仍处在早期开发阶段。核心结构已经拆分完成，桌面端、BT 会话、RSS 服务、本地 API 和设置管理都在独立模块中维护，但功能细节和界面文本仍会继续打磨。
 
-如果你只是想试用，请把它当作一个正在成长中的下载器；如果你想参与开发，欢迎从小问题、构建体验、文档和测试开始。
+如果你只是想试用，请把它当作一个正在成长中的下载器；如果你想参与开发，欢迎从小问题、构建体验和文档开始。
 
 ## 技术栈
 
@@ -27,7 +27,6 @@ AwaKurageDownloader 是一个基于 Qt 6 和 libtorrent 的桌面 BitTorrent 下
 - Qt Quick / QML
 - libtorrent
 - spdlog
-- Catch2
 - CMake + vcpkg
 
 ## 项目结构
@@ -38,7 +37,6 @@ src/core/           下载任务模型、设置服务和 DownloadManager
 src/torrent/        libtorrent 会话封装、Magnet 工具和任务状态映射
 src/rss/            RSS 订阅、刷新和自动添加逻辑
 src/api/            本地 HTTP / WebSocket API
-tests/              Catch2 测试
 docs/               架构和打包说明
 packaging/windows/  Windows 安装包相关文件
 resources/          图标、海报和 Qt 资源
@@ -77,20 +75,6 @@ cmake --preset default
 cmake --build --preset default
 ```
 
-默认会构建测试。如果你只想构建应用，可以在配置时关闭：
-
-```powershell
-cmake --preset default -DAWA_BUILD_TESTS=OFF
-```
-
-## 运行测试
-
-```powershell
-ctest --preset default
-```
-
-或者直接构建后运行测试目标，具体取决于你的生成器和 IDE 配置。
-
 ## 打包
 
 Windows 是当前优先支持的打包平台：
@@ -104,13 +88,13 @@ cmake --build build/windows-msvc --target package
 安装包默认输出类似：
 
 ```text
-AwaKurageDownloader-0.1.1-win64.msi
+AwaKurageDownloader-0.1.2-win64.msi
 ```
 
 如果系统里没有可用的 WiX Toolset，打包流程会回退生成：
 
 ```text
-AwaKurageDownloader-0.1.1-win64-portable.zip
+AwaKurageDownloader-0.1.2-win64-portable.zip
 ```
 
 更多细节见 [docs/packaging.md](docs/packaging.md)。
@@ -137,11 +121,9 @@ AwaKurageDownloader-0.1.1-win64-portable.zip
 
 - 修复界面文案、交互和小的可用性问题。
 - 补充构建、打包和运行文档。
-- 增加核心服务的测试覆盖。
 - 改进 Tracker、DHT、连接调度和状态展示。
 - 完善 RSS 和本地 API 的真实使用场景。
 
-提交改动前建议至少运行一次相关测试，确保没有引入明显回归。
 
 ## License
 

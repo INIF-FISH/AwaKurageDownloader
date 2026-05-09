@@ -120,7 +120,12 @@ void DownloadManager::setBackend(TorrentBackend* backend)
     }
 
     connect(m_backend, &TorrentBackend::itemUpdated, this, [this](const DownloadItem& item) {
+        const auto previous = m_downloads.itemById(item.id);
+        const bool becameComplete = !previous.id.isEmpty() && !previous.isComplete && item.isComplete;
         m_downloads.upsert(item);
+        if (becameComplete) {
+            emit downloadCompleted(item);
+        }
     });
     connect(m_backend, &TorrentBackend::itemRemoved, &m_downloads, &DownloadListModel::removeById);
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);

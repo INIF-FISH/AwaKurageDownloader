@@ -46,6 +46,9 @@ public:
     Q_INVOKABLE void setDownloadCompletionSoundEnabled(bool enabled);
     Q_INVOKABLE void playDownloadCompleteSound() const;
 
+signals:
+    void languageChanged(const QString& language);
+
 private:
     QString m_settingsPath;
 };

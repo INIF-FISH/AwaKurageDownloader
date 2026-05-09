@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(AwaKurageDownloader
-    VERSION 0.1.1
+    VERSION 0.1.2
     DESCRIPTION "A modern cross-platform BitTorrent downloader"
     LANGUAGES CXX
 )
@@ -10,7 +10,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(AWA_BUILD_TESTS "Build tests" ON)
 option(AWA_ENABLE_PACKAGING "Enable packaging targets" ON)
 
 if(WIN32)
@@ -19,7 +18,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network Sql WebSockets)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Network Sql WebSockets)
 find_package(spdlog CONFIG REQUIRED)
 find_package(LibtorrentRasterbar CONFIG REQUIRED)
 
@@ -30,12 +29,6 @@ add_subdirectory(src/torrent)
 add_subdirectory(src/rss)
 add_subdirectory(src/api)
 add_subdirectory(apps/desktop)
-
-if(AWA_BUILD_TESTS)
-    enable_testing()
-    find_package(Catch2 CONFIG REQUIRED)
-    add_subdirectory(tests)
-endif()
 
 if(AWA_ENABLE_PACKAGING)
     include(AwaPackaging)

@@ -40,6 +40,8 @@ target_link_libraries(AwaKurageDownloader
         awa_api
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
+        Qt6::Widgets
         Qt6::Qml
         Qt6::Quick
         Qt6::QuickControls2
@@ -55,13 +57,7 @@ install(TARGETS AwaKurageDownloader
     RUNTIME DESTINATION bin
 )
 
-if(WIN32)
-    install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/../../packaging/windows/AwaKurageDownloader.cmd"
-        DESTINATION .
-    )
-endif()
-
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/LOGO.png"
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../resources/APP.png"
     DESTINATION bin/resources
 )
 

@@ -92,6 +92,7 @@ signals:
     void seedingBehaviorChanged();
     void trackersChanged();
     void toastRequested(const QString& message);
+    void downloadCompleted(const awa::core::DownloadItem& item);
 
 private:
     DownloadOptions parseOptions(const QVariantMap& options) const;

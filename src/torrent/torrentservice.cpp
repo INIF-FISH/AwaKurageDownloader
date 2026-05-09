@@ -196,6 +196,28 @@ bool hasProgressSnapshot(const awa::core::DownloadItem& item)
         || pieceMapHasProgress(item.pieceMap);
 }
 
+bool pieceMapIsComplete(const QString& map)
+{
+    if (map.isEmpty()) {
+        return false;
+    }
+
+    for (const auto ch : map) {
+        if (ch != QLatin1Char('1')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool hasCompleteTransferSnapshot(const awa::core::DownloadItem& item)
+{
+    return (item.totalBytes > 0 && item.downloadedBytes >= item.totalBytes)
+        || item.progress >= 0.999999
+        || (item.pieceCount > 0 && item.completedPieces >= item.pieceCount)
+        || pieceMapIsComplete(item.pieceMap);
+}
+
 void fillMissingTransferSnapshot(awa::core::DownloadItem& item, const awa::core::DownloadItem& fallback)
 {
     if (!hasTransferSnapshot(fallback)) {
@@ -284,11 +306,142 @@ bool isCompletedState(awa::core::DownloadState state)
         || state == awa::core::DownloadState::PausedSeeding;
 }
 
+bool hasCompletedIntent(const awa::core::DownloadItem& item)
+{
+    return item.isComplete || isCompletedState(item.state);
+}
+
 bool shouldPauseAsSeeding(awa::core::DownloadState state)
 {
     return state == awa::core::DownloadState::Seeding
         || state == awa::core::DownloadState::Finished
         || state == awa::core::DownloadState::PausedSeeding;
+}
+
+bool shouldUserPauseAsSeeding(const awa::core::DownloadItem& item)
+{
+    return hasCompletedIntent(item)
+        || hasCompleteTransferSnapshot(item)
+        || shouldPauseAsSeeding(item.state);
+}
+
+void applyUserPausedState(
+    awa::core::DownloadItem& item,
+    const awa::core::DownloadItem* fallback = nullptr)
+{
+    const bool pauseAsSeed = shouldUserPauseAsSeeding(item)
+        || (fallback && shouldUserPauseAsSeeding(*fallback));
+    item.state = pauseAsSeed
+        ? awa::core::DownloadState::PausedSeeding
+        : awa::core::DownloadState::PausedDownloading;
+    item.isComplete = isCompletedState(item.state);
+    item.statusText = awa::core::stateToString(item.state);
+    item.downloadRate = 0;
+    item.uploadRate = 0;
+}
+
+QString pauseOwnerToString(PauseOwner owner)
+{
+    switch (owner) {
+    case PauseOwner::User: return QStringLiteral("user");
+    case PauseOwner::Scheduler: return QStringLiteral("scheduler");
+    case PauseOwner::None: return QStringLiteral("none");
+    }
+    return QStringLiteral("none");
+}
+
+PauseOwner pauseOwnerFromString(const QString& owner)
+{
+    if (owner == QStringLiteral("user")) {
+        return PauseOwner::User;
+    }
+    if (owner == QStringLiteral("scheduler")) {
+        return PauseOwner::Scheduler;
+    }
+    return PauseOwner::None;
+}
+
+TaskStateInput taskStateInputForItemAndStatus(
+    const awa::core::DownloadItem& item,
+    const awa::core::DownloadItem& storedSnapshot,
+    const lt::torrent_status& status,
+    PauseOwner pauseOwner,
+    bool priorityPausedSeed,
+    bool seedOnCompletionEnabled,
+    bool hasReliableLiveState)
+{
+    const bool livePaused = (status.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {};
+    const bool liveComplete = status.has_metadata && status.progress_ppm >= 1000000;
+    const bool snapshotComplete = hasCompleteTransferSnapshot(item) || hasCompleteTransferSnapshot(storedSnapshot);
+    const bool persistedComplete = hasCompletedIntent(item) || hasCompletedIntent(storedSnapshot);
+    const bool effectiveComplete = liveComplete || snapshotComplete || persistedComplete;
+
+    return {
+        storedSnapshot.state,
+        pauseOwner,
+        priorityPausedSeed,
+        seedOnCompletionEnabled,
+        hasReliableLiveState,
+        livePaused,
+        status.has_metadata,
+        effectiveComplete,
+        status.is_seeding || (effectiveComplete && isCompletedState(storedSnapshot.state))
+    };
+}
+
+TaskStateResult taskStateForItemAndStatus(
+    const awa::core::DownloadItem& item,
+    const lt::torrent_status& status,
+    PauseOwner pauseOwner,
+    bool priorityPausedSeed,
+    bool seedOnCompletionEnabled,
+    bool hasReliableLiveState = true)
+{
+    return TaskStateMachine::resolve(taskStateInputForItemAndStatus(
+        item,
+        item,
+        status,
+        pauseOwner,
+        priorityPausedSeed,
+        seedOnCompletionEnabled,
+        hasReliableLiveState));
+}
+
+QString statusTextForState(
+    awa::core::DownloadState state,
+    const awa::core::DownloadItem& item,
+    bool priorityPausedSeed,
+    bool seedOnCompletionEnabled)
+{
+    if (state == awa::core::DownloadState::FetchingMetadata) {
+        return QStringLiteral("获取元数据：%1，Peers %2，连接 %3，Tracker %4/%5")
+            .arg(item.dhtStatusText)
+            .arg(item.peerCount)
+            .arg(item.connectionCount)
+            .arg(item.workingTrackerCount)
+            .arg(item.trackerCount);
+    }
+
+    if (state == awa::core::DownloadState::Downloading) {
+        return QStringLiteral("下载中：Peers %1，Seeds %2，连接 %3，Tracker %4/%5")
+            .arg(item.peerCount)
+            .arg(item.seedCount)
+            .arg(item.connectionCount)
+            .arg(item.workingTrackerCount)
+            .arg(item.trackerCount);
+    }
+
+    if (state == awa::core::DownloadState::Waiting) {
+        return awa::core::stateToString(state);
+    }
+
+    if (priorityPausedSeed && !isPausedState(state)) {
+        return seedOnCompletionEnabled
+            ? QStringLiteral("下载优先，等待下载任务完成后继续做种")
+            : awa::core::stateToString(awa::core::DownloadState::Finished);
+    }
+
+    return awa::core::stateToString(state);
 }
 
 awa::core::DownloadState stateFromInt(int state)
@@ -323,6 +476,7 @@ QJsonObject itemToJson(const awa::core::DownloadItem& item)
         {QStringLiteral("progress"), item.progress},
         {QStringLiteral("totalBytes"), QString::number(item.totalBytes)},
         {QStringLiteral("downloadedBytes"), QString::number(item.downloadedBytes)},
+        {QStringLiteral("isComplete"), item.isComplete},
         {QStringLiteral("pieceCount"), item.pieceCount},
         {QStringLiteral("completedPieces"), item.completedPieces},
         {QStringLiteral("blockSize"), item.blockSize},
@@ -354,6 +508,9 @@ awa::core::DownloadItem itemFromJson(const QJsonObject& object)
     item.progress = jsonDouble(object, QStringLiteral("progress"));
     item.totalBytes = jsonInt64(object, QStringLiteral("totalBytes"));
     item.downloadedBytes = jsonInt64(object, QStringLiteral("downloadedBytes"));
+    item.isComplete = object.contains(QStringLiteral("isComplete"))
+        ? object.value(QStringLiteral("isComplete")).toBool()
+        : isCompletedState(item.state);
     item.pieceCount = object.value(QStringLiteral("pieceCount")).toInt();
     item.completedPieces = object.value(QStringLiteral("completedPieces")).toInt();
     item.blockSize = object.value(QStringLiteral("blockSize")).toInt();
@@ -373,6 +530,7 @@ awa::core::DownloadItem itemFromJson(const QJsonObject& object)
     for (const auto& tracker : object.value(QStringLiteral("trackers")).toArray()) {
         item.trackers.append(tracker.toString());
     }
+    item.isComplete = item.isComplete || hasCompletedIntent(item) || hasCompleteTransferSnapshot(item);
     return item;
 }
 } // namespace
@@ -394,7 +552,7 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_bool(lt::settings_pack::piece_extent_affinity, false);
     settings.set_bool(lt::settings_pack::prioritize_partial_pieces, false);
     settings.set_bool(lt::settings_pack::prefer_rc4, true);
-    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.1");
+    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.2");
     settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:6881-6891,[::]:6881-6891");
     settings.set_str(lt::settings_pack::dht_bootstrap_nodes,
         "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,"
@@ -510,22 +668,15 @@ void TorrentService::addTorrentFile(const QString& path, const awa::core::Downlo
         return;
     }
     m_removedIds.remove(handleId(handle));
+    const QString id = handleId(handle);
+    setPauseOwner(id, options.startPaused ? PauseOwner::User : PauseOwner::None);
     rememberHandle(handle, awa::core::DownloadState::Queued);
-    auto item = m_items.value(handleId(handle));
-    if (options.startPaused) {
-        m_userPausedIds.insert(item.id);
-    } else {
-        m_userPausedIds.remove(item.id);
-    }
+    auto item = itemFromHandle(handle);
+    setPauseOwner(item.id, options.startPaused ? PauseOwner::User : PauseOwner::None);
     item.source = path;
     item.savePath = options.savePath;
     if (options.startPaused) {
-        item.state = shouldPauseAsSeeding(item.state)
-            ? awa::core::DownloadState::PausedSeeding
-            : awa::core::DownloadState::PausedDownloading;
-        item.downloadRate = 0;
-        item.uploadRate = 0;
-        item.statusText = awa::core::stateToString(item.state);
+        applyUserPausedState(item);
     }
     m_items.insert(item.id, item);
     emit itemUpdated(item);
@@ -575,10 +726,15 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     pending.id = normalizedId;
     pending.name = QStringLiteral("Magnet %1").arg(pending.id.left(12));
     pending.source = normalizedUri;
-    pending.savePath = options.savePath;
-    pending.state = awa::core::DownloadState::FetchingMetadata;
-    pending.statusText = QStringLiteral("正在连接 DHT/Tracker 获取元数据");
+            pending.savePath = options.savePath;
+            pending.state = awa::core::DownloadState::FetchingMetadata;
+            pending.isComplete = false;
+            pending.statusText = QStringLiteral("正在连接 DHT/Tracker 获取元数据");
     pending.createdAt = QDateTime::currentDateTimeUtc();
+    if (options.startPaused) {
+        applyUserPausedState(pending);
+        setPauseOwner(pending.id, PauseOwner::User);
+    }
     m_items.insert(pending.id, pending);
     emit itemUpdated(pending);
     persistItems();
@@ -586,30 +742,26 @@ void TorrentService::addMagnet(const QString& uri, const awa::core::DownloadOpti
     auto handle = m_session->add_torrent(std::move(params), ec);
     if (ec) {
         pending.state = awa::core::DownloadState::Error;
+        pending.isComplete = false;
         pending.errorText = QString::fromStdString(ec.message());
         pending.statusText = QStringLiteral("添加失败：%1").arg(pending.errorText);
         m_items.insert(pending.id, pending);
+        setPauseOwner(pending.id, PauseOwner::None);
         emit itemUpdated(pending);
+        persistItems();
         emit errorRaised(QStringLiteral("添加磁力失败：%1").arg(QString::fromStdString(ec.message())));
         return;
     }
 
+    const QString id = handleId(handle);
+    setPauseOwner(id, options.startPaused ? PauseOwner::User : PauseOwner::None);
     rememberHandle(handle, awa::core::DownloadState::FetchingMetadata);
-    auto item = m_items.value(handleId(handle));
-    if (options.startPaused) {
-        m_userPausedIds.insert(item.id);
-    } else {
-        m_userPausedIds.remove(item.id);
-    }
+    auto item = itemFromHandle(handle);
+    setPauseOwner(item.id, options.startPaused ? PauseOwner::User : PauseOwner::None);
     item.source = normalizedUri;
     item.savePath = options.savePath;
     if (options.startPaused) {
-        item.state = shouldPauseAsSeeding(item.state)
-            ? awa::core::DownloadState::PausedSeeding
-            : awa::core::DownloadState::PausedDownloading;
-        item.downloadRate = 0;
-        item.uploadRate = 0;
-        item.statusText = awa::core::stateToString(item.state);
+        applyUserPausedState(item);
     }
     m_items.insert(item.id, item);
     emit itemUpdated(item);
@@ -630,25 +782,18 @@ void TorrentService::pause(const QString& id)
 {
     if (m_handles.contains(id)) {
         auto handle = m_handles.value(id);
-        const auto previousItem = itemFromHandle(handle);
-        m_userPausedIds.insert(id);
+        setPauseOwner(id, PauseOwner::User);
         m_priorityPausedSeeds.remove(id);
         handle.unset_flags(lt::torrent_flags::auto_managed);
         handle.set_flags(lt::torrent_flags::paused);
         handle.pause();
 
-        auto item = previousItem;
+        auto item = itemFromHandle(handle);
         if (item.id.isEmpty()) {
             item.id = id;
         }
-        item.state = shouldPauseAsSeeding(previousItem.state)
-            ? awa::core::DownloadState::PausedSeeding
-            : awa::core::DownloadState::PausedDownloading;
-        item.downloadRate = 0;
-        item.uploadRate = 0;
-        item.statusText = awa::core::stateToString(item.state);
+        applyUserPausedState(item);
         m_items.insert(id, item);
-        m_schedulerPausedIds.remove(id);
         emit itemUpdated(item);
         persistItems();
         requestResumeData(id, true);
@@ -659,7 +804,7 @@ void TorrentService::resume(const QString& id)
 {
     if (m_handles.contains(id)) {
         auto handle = m_handles.value(id);
-        m_userPausedIds.remove(id);
+        setPauseOwner(id, PauseOwner::None);
         m_priorityPausedSeeds.remove(id);
         handle.unset_flags(lt::torrent_flags::auto_managed | lt::torrent_flags::paused | lt::torrent_flags::sequential_download);
         handle.resume();
@@ -668,17 +813,24 @@ void TorrentService::resume(const QString& id)
         handle.force_lsd_announce();
 
         auto item = itemFromHandle(handle);
-        const auto previousState = m_items.value(id).state;
-        if (previousState == awa::core::DownloadState::PausedSeeding) {
-            item.state = awa::core::DownloadState::Seeding;
-        } else if (previousState == awa::core::DownloadState::PausedDownloading) {
-            item.state = item.totalBytes > 0
+        if (hasCompletedIntent(item) || hasCompleteTransferSnapshot(item)) {
+            item.state = m_seedOnCompletionEnabled
+                ? awa::core::DownloadState::Seeding
+                : awa::core::DownloadState::Finished;
+            item.isComplete = true;
+            item.downloadRate = 0;
+            item.uploadRate = 0;
+            item.statusText = item.state == awa::core::DownloadState::Seeding
+                ? QStringLiteral("继续做种中")
+                : awa::core::stateToString(item.state);
+        } else {
+            item.state = item.totalBytes > 0 || item.pieceCount > 0
                 ? awa::core::DownloadState::Downloading
                 : awa::core::DownloadState::FetchingMetadata;
+            item.isComplete = false;
+            item.statusText = QStringLiteral("正在恢复连接...");
         }
-        item.statusText = QStringLiteral("正在恢复连接...");
         m_items.insert(id, item);
-        m_schedulerPausedIds.remove(id);
         emit itemUpdated(item);
         persistItems();
         requestResumeData(id, true);
@@ -704,8 +856,7 @@ void TorrentService::remove(const QString& id, bool removeFiles)
     m_lastMetadataRetry.remove(id);
     m_lastPeerDiscovery.remove(id);
     m_metadataRetryCounts.remove(id);
-    m_userPausedIds.remove(id);
-    m_schedulerPausedIds.remove(id);
+    setPauseOwner(id, PauseOwner::None);
     m_pieceProbes.remove(id);
     QFile::remove(resumeDataPath(id));
     persistItems();
@@ -847,59 +998,65 @@ void TorrentService::loadPersistedTasks()
         }
         const bool resumeDataPaused = !ec
             && (params.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {};
-        const bool schedulerPaused = object.value(QStringLiteral("schedulerPaused")).toBool()
-            || stored.state == awa::core::DownloadState::Waiting;
-        const bool userPaused = object.value(QStringLiteral("userPaused")).toBool()
-            || isPausedState(stored.state)
-            || (resumeDataPaused && !schedulerPaused);
         applyResumeTransferSnapshot(stored, params);
-
-        auto restoreSchedulerPause = [&]() {
-            if (!schedulerPaused || userPaused) {
-                return;
-            }
-
-            m_userPausedIds.remove(stored.id);
-            m_schedulerPausedIds.insert(stored.id);
-            if (m_handles.contains(stored.id)) {
-                auto handle = m_handles.value(stored.id);
-                handle.set_flags(lt::torrent_flags::paused);
-                handle.pause();
-            }
-
-            auto item = m_items.value(stored.id);
-            if (item.id.isEmpty()) {
-                return;
-            }
-            item.state = awa::core::DownloadState::Waiting;
-            item.statusText = QStringLiteral("等待可用下载槽");
-            item.downloadRate = 0;
-            item.uploadRate = 0;
-            m_items.insert(stored.id, item);
-            emit itemUpdated(item);
-        };
+        const bool storedCompleteIntent = hasCompletedIntent(stored) || hasCompleteTransferSnapshot(stored);
+        auto persistedPauseOwner = pauseOwnerFromString(object.value(QStringLiteral("pauseOwner")).toString());
+        const bool hasPersistedPauseOwner = object.contains(QStringLiteral("pauseOwner"));
+        const bool legacySchedulerPaused = object.value(QStringLiteral("schedulerPaused")).toBool()
+            || stored.state == awa::core::DownloadState::Waiting;
+        const bool explicitUserPaused = object.value(QStringLiteral("userPaused")).toBool()
+            || persistedPauseOwner == PauseOwner::User
+            || isPausedState(stored.state);
+        const bool fastResumeUserPaused = resumeDataPaused
+            && persistedPauseOwner != PauseOwner::Scheduler
+            && !legacySchedulerPaused;
+        if (persistedPauseOwner == PauseOwner::None && (explicitUserPaused || fastResumeUserPaused)) {
+            persistedPauseOwner = PauseOwner::User;
+        }
+        const bool schedulerPaused = hasPersistedPauseOwner
+            ? persistedPauseOwner == PauseOwner::Scheduler
+            : legacySchedulerPaused;
+        const bool userPaused = persistedPauseOwner == PauseOwner::User
+            || (!schedulerPaused && explicitUserPaused)
+            || (!schedulerPaused && fastResumeUserPaused && !storedCompleteIntent);
 
         if (ec || (!params.ti && params.info_hashes == lt::info_hash_t {})) {
             if (stored.source.startsWith(QStringLiteral("magnet:"), Qt::CaseInsensitive)) {
-                awa::core::DownloadOptions options;
-                options.savePath = stored.savePath;
-                options.startPaused = userPaused || schedulerPaused;
-                addMagnet(stored.source, options);
-                restoreSchedulerPause();
+                ec.clear();
+                const QString normalizedUri = normalizeMagnetUri(stored.source.trimmed());
+                params = lt::parse_magnet_uri(normalizedUri.toStdString(), ec);
+                if (!ec) {
+                    stored.source = normalizedUri;
+                    params.flags &= ~lt::torrent_flags::duplicate_is_error;
+                    params.dht_nodes.emplace_back("router.bittorrent.com", 6881);
+                    params.dht_nodes.emplace_back("dht.transmissionbt.com", 6881);
+                    params.dht_nodes.emplace_back("router.utorrent.com", 6881);
+                    params.dht_nodes.emplace_back("dht.aelitis.com", 6881);
+                    params.dht_nodes.emplace_back("dht.libtorrent.org", 25401);
+                }
             } else if (QFileInfo::exists(stored.source)) {
-                awa::core::DownloadOptions options;
-                options.savePath = stored.savePath;
-                options.startPaused = userPaused || schedulerPaused;
-                addTorrentFile(stored.source, options);
-                restoreSchedulerPause();
+                ec.clear();
+                params = lt::add_torrent_params {};
+                params.ti = std::make_shared<lt::torrent_info>(stored.source.toStdString(), ec);
             } else {
                 stored.state = awa::core::DownloadState::Error;
+                stored.isComplete = false;
                 stored.errorText = QStringLiteral("任务来源不可用，无法恢复");
                 stored.statusText = stored.errorText;
                 m_items.insert(stored.id, stored);
                 emit itemUpdated(stored);
+                continue;
             }
-            continue;
+
+            if (ec || (!params.ti && params.info_hashes == lt::info_hash_t {})) {
+                stored.state = awa::core::DownloadState::Error;
+                stored.isComplete = false;
+                stored.errorText = QStringLiteral("任务来源不可用，无法恢复");
+                stored.statusText = stored.errorText;
+                m_items.insert(stored.id, stored);
+                emit itemUpdated(stored);
+                continue;
+            }
         }
 
         if (!stored.savePath.isEmpty()) {
@@ -913,15 +1070,21 @@ void TorrentService::loadPersistedTasks()
         const bool resumeSuggestsCompleted = hasCompletePieces
             || hasVerifiedPieces
             || pieceCountMatches
+            || stored.isComplete
+            || hasCompleteTransferSnapshot(stored)
             || (params.finished_time > 0 && params.total_downloaded > 0 && params.unfinished_pieces.empty());
         const bool restoreAsCompleted = resumeSuggestsCompleted
-            && (stored.state == awa::core::DownloadState::PausedDownloading || isCompletedState(stored.state));
+            && (stored.isComplete
+                || stored.state == awa::core::DownloadState::PausedDownloading
+                || isCompletedState(stored.state));
+        const bool effectiveSchedulerPaused = schedulerPaused && !restoreAsCompleted;
         applyTrackers(params);
         params.flags &= ~lt::torrent_flags::auto_managed;
         params.flags &= ~lt::torrent_flags::sequential_download;
         const bool shouldRestorePaused = userPaused
-            || schedulerPaused
+            || effectiveSchedulerPaused
             || stored.state == awa::core::DownloadState::Finished
+            || (stored.isComplete && !m_seedOnCompletionEnabled)
             || (restoreAsCompleted && !m_seedOnCompletionEnabled);
         if (shouldRestorePaused) {
             params.flags |= lt::torrent_flags::paused;
@@ -932,6 +1095,7 @@ void TorrentService::loadPersistedTasks()
         auto handle = m_session->add_torrent(std::move(params), ec);
         if (ec) {
             stored.state = awa::core::DownloadState::Error;
+            stored.isComplete = false;
             stored.errorText = QString::fromStdString(ec.message());
             stored.statusText = QStringLiteral("恢复任务失败：%1").arg(stored.errorText);
             m_items.insert(stored.id, stored);
@@ -939,16 +1103,11 @@ void TorrentService::loadPersistedTasks()
             continue;
         }
 
-        if (userPaused) {
-            m_userPausedIds.insert(stored.id);
-        } else {
-            m_userPausedIds.remove(stored.id);
-        }
-        if (schedulerPaused) {
-            m_schedulerPausedIds.insert(stored.id);
-        } else {
-            m_schedulerPausedIds.remove(stored.id);
-        }
+        const QString actualId = handleId(handle);
+        const PauseOwner restoredPauseOwner =
+            userPaused ? PauseOwner::User : effectiveSchedulerPaused ? PauseOwner::Scheduler : PauseOwner::None;
+        setPauseOwner(stored.id, restoredPauseOwner);
+        setPauseOwner(actualId, restoredPauseOwner);
         m_items.insert(stored.id, stored);
 
         rememberHandle(handle, stored.state, false);
@@ -960,15 +1119,10 @@ void TorrentService::loadPersistedTasks()
             restored.name = stored.name;
         }
         if (userPaused) {
-            restored.state = restoreAsCompleted
-                || shouldPauseAsSeeding(stored.state)
-                ? awa::core::DownloadState::PausedSeeding
-                : awa::core::DownloadState::PausedDownloading;
-            restored.statusText = awa::core::stateToString(restored.state);
-            restored.downloadRate = 0;
-            restored.uploadRate = 0;
-        } else if (schedulerPaused) {
+            applyUserPausedState(restored, &stored);
+        } else if (effectiveSchedulerPaused) {
             restored.state = awa::core::DownloadState::Waiting;
+            restored.isComplete = false;
             restored.statusText = QStringLiteral("等待可用下载槽");
             restored.downloadRate = 0;
             restored.uploadRate = 0;
@@ -976,6 +1130,7 @@ void TorrentService::loadPersistedTasks()
             restored.state = m_seedOnCompletionEnabled
                 ? awa::core::DownloadState::Seeding
                 : awa::core::DownloadState::Finished;
+            restored.isComplete = true;
             restored.statusText = restored.state == awa::core::DownloadState::Seeding
                 ? QStringLiteral("继续做种中")
                 : QStringLiteral("下载完成");
@@ -985,6 +1140,7 @@ void TorrentService::loadPersistedTasks()
             }
         } else if (stored.state == awa::core::DownloadState::Seeding) {
             restored.state = awa::core::DownloadState::Seeding;
+            restored.isComplete = true;
             restored.statusText = QStringLiteral("继续做种中");
         } else {
             restored.statusText = QStringLiteral("已恢复任务");
@@ -1080,7 +1236,7 @@ void TorrentService::pollAlerts()
             }
             m_handles.remove(id);
             m_items.remove(id);
-            m_userPausedIds.remove(id);
+            setPauseOwner(id, PauseOwner::None);
             m_priorityPausedSeeds.remove(id);
             m_lastMetadataRetry.remove(id);
             m_lastPeerDiscovery.remove(id);
@@ -1180,6 +1336,25 @@ bool TorrentService::shouldIgnoreId(const QString& id) const
     return id.isEmpty() || m_removedIds.contains(id);
 }
 
+PauseOwner TorrentService::pauseOwner(const QString& id) const
+{
+    return m_pauseOwners.value(id, PauseOwner::None);
+}
+
+void TorrentService::setPauseOwner(const QString& id, PauseOwner owner)
+{
+    if (id.isEmpty()) {
+        return;
+    }
+
+    if (owner == PauseOwner::None) {
+        m_pauseOwners.remove(id);
+        return;
+    }
+
+    m_pauseOwners.insert(id, owner);
+}
+
 int TorrentService::trackerHealthScore(const QString& tracker) const
 {
     const auto health = m_trackerHealth.value(tracker);
@@ -1237,7 +1412,13 @@ bool TorrentService::hasActiveDownloads() const
             && !m_priorityPausedSeeds.contains(it.key())) {
             continue;
         }
-        if (!status.has_metadata || status.progress_ppm < 1000000 || !status.is_seeding) {
+        const auto state = taskStateForItemAndStatus(
+            m_items.value(it.key()),
+            status,
+            pauseOwner(it.key()),
+            m_priorityPausedSeeds.contains(it.key()),
+            m_seedOnCompletionEnabled);
+        if (!state.isComplete) {
             return true;
         }
     }
@@ -1259,15 +1440,19 @@ void TorrentService::updateDynamicBlockTuning()
             const auto handle = it.value();
             if (!handle.is_valid()
                 || shouldIgnoreId(id)
-                || m_userPausedIds.contains(id)
-                || m_schedulerPausedIds.contains(id)
+                || pauseOwner(id) != PauseOwner::None
                 || m_priorityPausedSeeds.contains(id)) {
                 continue;
             }
 
             const auto status = handle.status();
-            const bool isComplete = status.has_metadata && status.progress_ppm >= 1000000;
-            if (isComplete || status.is_seeding) {
+            const auto state = taskStateForItemAndStatus(
+                m_items.value(id),
+                status,
+                pauseOwner(id),
+                m_priorityPausedSeeds.contains(id),
+                m_seedOnCompletionEnabled);
+            if (state.isComplete) {
                 continue;
             }
 
@@ -1329,13 +1514,18 @@ void TorrentService::updateProbePieceSelection(
         }
     };
 
+    const auto taskState = taskStateForItemAndStatus(
+        m_items.value(id),
+        status,
+        pauseOwner(id),
+        m_priorityPausedSeeds.contains(id),
+        m_seedOnCompletionEnabled);
+
     if (!m_dynamicBlockTuningEnabled
         || !handle.is_valid()
         || !status.has_metadata
-        || status.is_seeding
-        || status.progress_ppm >= 1000000
-        || m_userPausedIds.contains(id)
-        || m_schedulerPausedIds.contains(id)
+        || taskState.isComplete
+        || pauseOwner(id) != PauseOwner::None
         || m_priorityPausedSeeds.contains(id)) {
         clearProbe();
         return;
@@ -1538,14 +1728,21 @@ void TorrentService::updateDownloadQueue()
     for (auto it = m_handles.begin(); it != m_handles.end(); ++it) {
         const QString id = it.key();
         auto handle = it.value();
-        if (!handle.is_valid() || shouldIgnoreId(id) || m_userPausedIds.contains(id)) {
+        if (!handle.is_valid() || shouldIgnoreId(id) || pauseOwner(id) == PauseOwner::User) {
             continue;
         }
 
         const auto status = handle.status();
-        const bool isComplete = status.has_metadata && status.progress_ppm >= 1000000;
-        if (isComplete || status.is_seeding || m_priorityPausedSeeds.contains(id)) {
-            m_schedulerPausedIds.remove(id);
+        const auto state = taskStateForItemAndStatus(
+            m_items.value(id),
+            status,
+            pauseOwner(id),
+            m_priorityPausedSeeds.contains(id),
+            m_seedOnCompletionEnabled);
+        if (state.isComplete || m_priorityPausedSeeds.contains(id)) {
+            if (pauseOwner(id) == PauseOwner::Scheduler) {
+                setPauseOwner(id, PauseOwner::None);
+            }
             continue;
         }
 
@@ -1570,7 +1767,11 @@ void TorrentService::updateDownloadQueue()
         const bool isPaused = (status.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {};
 
         if (shouldRun) {
-            if (m_schedulerPausedIds.remove(id) || isPaused) {
+            const bool schedulerPaused = pauseOwner(id) == PauseOwner::Scheduler;
+            if (schedulerPaused || isPaused) {
+                if (schedulerPaused) {
+                    setPauseOwner(id, PauseOwner::None);
+                }
                 handle.unset_flags(lt::torrent_flags::paused);
                 handle.resume();
                 handle.force_reannounce();
@@ -1586,8 +1787,8 @@ void TorrentService::updateDownloadQueue()
             handle.pause();
             queueChanged = true;
         }
-        const bool wasSchedulerPaused = m_schedulerPausedIds.contains(id);
-        m_schedulerPausedIds.insert(id);
+        const bool wasSchedulerPaused = pauseOwner(id) == PauseOwner::Scheduler;
+        setPauseOwner(id, PauseOwner::Scheduler);
 
         auto item = m_items.value(id);
         const bool shouldEmitWaitingUpdate = !wasSchedulerPaused
@@ -1598,8 +1799,10 @@ void TorrentService::updateDownloadQueue()
             item.id = id;
         }
         item.state = awa::core::DownloadState::Waiting;
+        item.isComplete = false;
         item.statusText = QStringLiteral("等待可用下载槽");
         item.downloadRate = 0;
+        item.uploadRate = 0;
         m_items.insert(id, item);
         if (shouldEmitWaitingUpdate) {
             queueChanged = true;
@@ -1624,12 +1827,15 @@ void TorrentService::updateSeedingPriority()
         }
 
         const auto status = handle.status();
-        const bool isComplete = status.has_metadata && status.progress_ppm >= 1000000;
-        const bool isSeeding = status.is_seeding;
         const bool isPaused = (status.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {};
         const bool priorityPaused = m_priorityPausedSeeds.contains(id);
-        const bool userPaused = isPaused && !priorityPaused;
-        if (!isComplete || userPaused) {
+        const auto state = taskStateForItemAndStatus(
+            m_items.value(id),
+            status,
+            pauseOwner(id),
+            priorityPaused,
+            m_seedOnCompletionEnabled);
+        if (!state.isComplete || pauseOwner(id) == PauseOwner::User) {
             continue;
         }
 
@@ -1645,8 +1851,6 @@ void TorrentService::updateSeedingPriority()
             }
             m_priorityPausedSeeds.remove(id);
             item = itemFromHandle(handle);
-            item.state = awa::core::DownloadState::Finished;
-            item.statusText = QStringLiteral("下载完成");
             item.downloadRate = 0;
             item.uploadRate = 0;
             m_items.insert(id, item);
@@ -1654,13 +1858,11 @@ void TorrentService::updateSeedingPriority()
             continue;
         }
 
-        if (activeDownloads && isSeeding && !isPaused) {
+        if (activeDownloads && status.is_seeding && !isPaused) {
             handle.set_flags(lt::torrent_flags::paused);
             handle.pause();
             m_priorityPausedSeeds.insert(id);
             item = itemFromHandle(handle);
-            item.state = awa::core::DownloadState::Seeding;
-            item.statusText = QStringLiteral("下载优先，等待下载任务完成后继续做种");
             item.downloadRate = 0;
             m_items.insert(id, item);
             emit itemUpdated(item);
@@ -1675,8 +1877,6 @@ void TorrentService::updateSeedingPriority()
             handle.force_lsd_announce();
             m_priorityPausedSeeds.remove(id);
             item = itemFromHandle(handle);
-            item.state = awa::core::DownloadState::Seeding;
-            item.statusText = QStringLiteral("继续做种中");
             m_items.insert(id, item);
             emit itemUpdated(item);
             continue;
@@ -1684,8 +1884,6 @@ void TorrentService::updateSeedingPriority()
 
         if (priorityPaused) {
             item = itemFromHandle(handle);
-            item.state = awa::core::DownloadState::Seeding;
-            item.statusText = QStringLiteral("下载优先，等待下载任务完成后继续做种");
             item.downloadRate = 0;
             item.uploadRate = 0;
             m_items.insert(id, item);
@@ -1702,7 +1900,6 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
         | lt::torrent_handle::query_pieces);
     awa::core::DownloadItem item = m_items.value(handleId(handle));
     const auto storedSnapshot = item;
-    const auto previousState = item.state;
     item.id = handleId(handle);
     const QString liveName = QString::fromStdString(status.name);
     if (!liveName.isEmpty()) {
@@ -1782,75 +1979,24 @@ awa::core::DownloadItem TorrentService::itemFromHandle(const lt::torrent_handle&
         item.connectionHealthText = QStringLiteral("等待可用 peer");
     }
 
-    const bool completedWithoutSeeding = item.state == awa::core::DownloadState::Finished
-        && !m_seedOnCompletionEnabled
-        && status.has_metadata
-        && status.progress_ppm >= 1000000;
-    const bool preserveStoredPausedState = !hasTransferSnapshot
-        && isPausedState(previousState);
-    const bool previousStateWasCompleted = isCompletedState(previousState);
-    const bool preserveStoredCompletedState = previousStateWasCompleted
-        && (!hasTransferSnapshot
-            || liveSnapshotWouldResetProgress(storedSnapshot, status)
-            || liveSnapshotWouldResetPieceMap(storedSnapshot, status)
-            || status.progress_ppm < 1000000);
-
-    if (m_priorityPausedSeeds.contains(item.id)) {
-        item.state = m_seedOnCompletionEnabled
-            ? awa::core::DownloadState::Seeding
-            : awa::core::DownloadState::Finished;
-    } else if (preserveStoredPausedState) {
-        item.state = previousState;
-    } else if (preserveStoredCompletedState) {
-        item.state = previousState;
-    } else if (m_userPausedIds.contains(item.id)) {
-        item.state = status.has_metadata && (status.is_seeding || status.progress_ppm >= 1000000)
-            ? awa::core::DownloadState::PausedSeeding
-            : awa::core::DownloadState::PausedDownloading;
-    } else if (m_schedulerPausedIds.contains(item.id)) {
-        item.state = awa::core::DownloadState::Waiting;
-    } else if (completedWithoutSeeding) {
-        item.state = awa::core::DownloadState::Finished;
-    } else if ((status.flags & lt::torrent_flags::paused) != lt::torrent_flags_t {}) {
-        item.state = status.has_metadata && status.progress_ppm < 1000000
-            ? awa::core::DownloadState::Waiting
-            : status.has_metadata && (status.is_seeding || status.progress_ppm >= 1000000)
-                ? awa::core::DownloadState::PausedSeeding
-                : awa::core::DownloadState::PausedDownloading;
-    } else if (!status.has_metadata) {
-        item.state = awa::core::DownloadState::FetchingMetadata;
-    } else if (status.is_seeding) {
-        item.state = awa::core::DownloadState::Seeding;
-    } else if (status.progress_ppm >= 1000000) {
-        item.state = awa::core::DownloadState::Finished;
-    } else {
-        item.state = awa::core::DownloadState::Downloading;
-    }
-
-    if (item.state == awa::core::DownloadState::FetchingMetadata) {
-        item.statusText = QStringLiteral("获取元数据：%1，Peers %2，连接 %3，Tracker %4/%5")
-            .arg(item.dhtStatusText)
-            .arg(item.peerCount)
-            .arg(item.connectionCount)
-            .arg(item.workingTrackerCount)
-            .arg(item.trackerCount);
-    } else if (item.state == awa::core::DownloadState::Downloading) {
-        item.statusText = QStringLiteral("下载中：Peers %1，Seeds %2，连接 %3，Tracker %4/%5")
-            .arg(item.peerCount)
-            .arg(item.seedCount)
-            .arg(item.connectionCount)
-            .arg(item.workingTrackerCount)
-            .arg(item.trackerCount);
-    } else if (item.state == awa::core::DownloadState::Waiting) {
-        item.statusText = QStringLiteral("等待可用下载槽");
-    } else if (m_priorityPausedSeeds.contains(item.id)) {
-        item.statusText = m_seedOnCompletionEnabled
-            ? QStringLiteral("下载优先，等待下载任务完成后继续做种")
-            : QStringLiteral("下载完成");
-    } else if (m_userPausedIds.contains(item.id)) {
-        item.statusText = awa::core::stateToString(item.state);
-    } else {
-        item.statusText = awa::core::stateToString(item.state);
+    const PauseOwner owner = pauseOwner(item.id);
+    const auto stateResult = TaskStateMachine::resolve(taskStateInputForItemAndStatus(
+        item,
+        storedSnapshot,
+        status,
+        owner,
+        m_priorityPausedSeeds.contains(item.id),
+        m_seedOnCompletionEnabled,
+        shouldApplyTransferSnapshot));
+    item.state = stateResult.state;
+    item.isComplete = stateResult.isComplete;
+    item.statusText = statusTextForState(
+        item.state,
+        item,
+        m_priorityPausedSeeds.contains(item.id),
+        m_seedOnCompletionEnabled);
+    if (owner == PauseOwner::User) {
+        applyUserPausedState(item, &storedSnapshot);
     }
     if (item.createdAt.isNull()) {
         item.createdAt = QDateTime::currentDateTimeUtc();
@@ -1873,23 +2019,43 @@ void TorrentService::rememberHandle(
     }
     m_handles.insert(id, handle);
 
+    const auto existing = m_items.value(id);
     auto item = itemFromHandle(handle);
     item.id = id;
+    if (pauseOwner(id) == PauseOwner::User) {
+        applyUserPausedState(item, &existing);
+    }
     if (item.state == awa::core::DownloadState::Queued) {
         item.state = initialState;
     }
-    const auto existing = m_items.value(id);
-    if (isCompletedState(existing.state) && !isCompletedState(item.state)) {
-        item.state = existing.state;
-        item.statusText = existing.statusText;
+    if (hasCompletedIntent(existing) && !item.isComplete) {
+        const auto completedResult = TaskStateMachine::resolve({
+            existing.state,
+            pauseOwner(id),
+            m_priorityPausedSeeds.contains(id),
+            m_seedOnCompletionEnabled,
+            true,
+            false,
+            true,
+            true,
+            isCompletedState(existing.state)
+        });
+        item.state = completedResult.state;
+        item.isComplete = true;
+        item.statusText = statusTextForState(
+            item.state,
+            item,
+            m_priorityPausedSeeds.contains(id),
+            m_seedOnCompletionEnabled);
         item.downloadRate = 0;
         item.uploadRate = 0;
     }
     if (item.name.isEmpty()) {
         item.name = QStringLiteral("Magnet %1").arg(id.left(12));
     }
-    if (item.state == awa::core::DownloadState::FetchingMetadata
-        || initialState == awa::core::DownloadState::FetchingMetadata) {
+    if (!isPausedState(item.state)
+        && (item.state == awa::core::DownloadState::FetchingMetadata
+            || initialState == awa::core::DownloadState::FetchingMetadata)) {
         item.statusText = QStringLiteral("采用稀有块优先策略获取元数据");
     } else {
         item.statusText = awa::core::stateToString(item.state);
@@ -1926,15 +2092,41 @@ void TorrentService::persistItems() const
     QJsonArray downloads;
     for (const auto& item : m_items) {
         if (!item.id.isEmpty()) {
-            QJsonObject object = itemToJson(item);
-            object.insert(QStringLiteral("userPaused"), m_userPausedIds.contains(item.id));
-            object.insert(QStringLiteral("schedulerPaused"), m_schedulerPausedIds.contains(item.id));
+            auto owner = pauseOwner(item.id);
+            auto persisted = item;
+            if (owner == PauseOwner::User || isPausedState(persisted.state)) {
+                owner = PauseOwner::User;
+                applyUserPausedState(persisted);
+            } else {
+                const auto stateResult = TaskStateMachine::resolve({
+                    persisted.state,
+                    owner,
+                    m_priorityPausedSeeds.contains(item.id),
+                    m_seedOnCompletionEnabled,
+                    hasTransferSnapshot(persisted),
+                    false,
+                    hasTransferSnapshot(persisted),
+                    persisted.isComplete || hasCompleteTransferSnapshot(persisted),
+                    hasCompletedIntent(persisted)
+                });
+                persisted.state = stateResult.state;
+                persisted.isComplete = stateResult.isComplete;
+                if (stateResult.isComplete) {
+                    owner = PauseOwner::None;
+                    persisted.downloadRate = 0;
+                    persisted.uploadRate = 0;
+                }
+                persisted.statusText = awa::core::stateToString(persisted.state);
+            }
+            QJsonObject object = itemToJson(persisted);
+            object.insert(QStringLiteral("pauseOwner"), pauseOwnerToString(owner));
             downloads.append(object);
         }
     }
 
     QJsonObject root;
-    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("version"), 2);
+    root.insert(QStringLiteral("stateSource"), QStringLiteral("downloads.json"));
     root.insert(QStringLiteral("downloads"), downloads);
 
     QSaveFile file(indexFilePath());
@@ -1991,8 +2183,7 @@ void TorrentService::restartDownloadsAfterNetworkChange()
             if (item.id.isEmpty()) {
                 item.id = it.key();
             }
-            if (item.state != awa::core::DownloadState::PausedDownloading
-                && item.state != awa::core::DownloadState::PausedSeeding) {
+            if (pauseOwner(it.key()) != PauseOwner::User) {
                 item.downloadRate = 0;
                 item.uploadRate = 0;
                 item.statusText = QStringLiteral("网络已断开，等待恢复后重连");
@@ -2013,8 +2204,7 @@ void TorrentService::restartDownloadsAfterNetworkChange()
         }
 
         auto item = m_items.value(id);
-        if (item.state == awa::core::DownloadState::PausedDownloading
-            || item.state == awa::core::DownloadState::PausedSeeding) {
+        if (pauseOwner(id) != PauseOwner::None) {
             continue;
         }
 
@@ -2031,9 +2221,7 @@ void TorrentService::restartDownloadsAfterNetworkChange()
         if (item.id.isEmpty()) {
             item.id = id;
         }
-        item.state = item.totalBytes > 0
-            ? awa::core::DownloadState::Downloading
-            : awa::core::DownloadState::FetchingMetadata;
+        item = itemFromHandle(handle);
         item.statusText = QStringLiteral("网络变化，正在重新连接");
         m_items.insert(id, item);
         emit itemUpdated(item);
@@ -2054,7 +2242,13 @@ void TorrentService::writeResumeData(const QString& id, const lt::add_torrent_pa
     }
 
     QDir().mkpath(persistenceDir());
-    const auto data = lt::write_resume_data_buf(params);
+    auto persistedParams = params;
+    if (pauseOwner(id) != PauseOwner::None || isPausedState(m_items.value(id).state)) {
+        persistedParams.flags |= lt::torrent_flags::paused;
+    } else {
+        persistedParams.flags &= ~lt::torrent_flags::paused;
+    }
+    const auto data = lt::write_resume_data_buf(persistedParams);
     QSaveFile file(resumeDataPath(id));
     if (!file.open(QIODevice::WriteOnly)) {
         return;
