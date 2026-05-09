@@ -15,6 +15,10 @@ ApplicationWindow {
     title: "AwaKurageDownloader"
     color: AwaTheme.page
 
+    onClosing: function(close) {
+        close.accepted = !trayController.closeToTray(window)
+    }
+
     property string selectedDownloadId: ""
     property var selectedDownload: ({})
     property string toastText: ""

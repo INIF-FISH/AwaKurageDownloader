@@ -222,11 +222,16 @@ QString SettingsService::language() const
 
 void SettingsService::setLanguage(const QString& language)
 {
+    const QString normalized = language == QStringLiteral("en_US") || language == QStringLiteral("ja_JP")
+        ? language
+        : QStringLiteral("zh_CN");
+    if (normalized == this->language()) {
+        return;
+    }
+
     QSettings settings(m_settingsPath, QSettings::IniFormat);
-    settings.setValue(QStringLiteral("ui/language"),
-        language == QStringLiteral("en_US") || language == QStringLiteral("ja_JP")
-            ? language
-            : QStringLiteral("zh_CN"));
+    settings.setValue(QStringLiteral("ui/language"), normalized);
+    emit languageChanged(normalized);
 }
 
 } // namespace awa::core

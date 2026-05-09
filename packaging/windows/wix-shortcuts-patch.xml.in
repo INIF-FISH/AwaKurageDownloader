@@ -1,5 +1,6 @@
 <CPackWiXPatch>
   <CPackWiXFragment Id="#PRODUCTFEATURE">
+    <ComponentRef Id="AwaStartMenuShortcutComponent"/>
     <Feature Id="AwaDesktopShortcutFeature"
              Title="@AWA_WIX_SHORTCUT_FEATURE_TITLE@"
              Description="@AWA_WIX_SHORTCUT_FEATURE_DESCRIPTION@"

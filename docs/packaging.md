@@ -12,10 +12,10 @@ cmake --build --preset windows-msvc
 cmake --build build/windows-msvc --target package
 ```
 
-The expected output name is:
+The expected default English MSI output name is:
 
 ```text
-AwaKurageDownloader-0.1.1-win64.msi
+AwaKurageDownloader-0.1.1-win64-en-us.msi
 ```
 
 WiX Toolset must be installed and visible to CPack. The installer installs the application under `Program Files/AwaKurageDownloader` and exposes a normal Windows uninstall entry.

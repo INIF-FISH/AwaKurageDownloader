@@ -43,6 +43,9 @@ public:
     Q_INVOKABLE QString language() const;
     Q_INVOKABLE void setLanguage(const QString& language);
 
+signals:
+    void languageChanged(const QString& language);
+
 private:
     QString m_settingsPath;
 };
