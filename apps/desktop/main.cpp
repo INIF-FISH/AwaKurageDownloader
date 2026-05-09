@@ -323,11 +323,16 @@ int main(int argc, char* argv[])
     const QString qPosterUrl = QFileInfo::exists(packagedQPosterPath)
         ? QUrl::fromLocalFile(packagedQPosterPath).toString()
         : QStringLiteral("qrc:/images/qposter.png");
+    const QString packagedWorldDotsPath = QApplication::applicationDirPath() + QStringLiteral("/resources/maps/world_dots.png");
+    const QString worldDotsUrl = QFileInfo::exists(packagedWorldDotsPath)
+        ? QUrl::fromLocalFile(packagedWorldDotsPath).toString()
+        : QStringLiteral("qrc:/maps/world_dots.png");
     const QIcon appIcon(logoPath);
     QApplication::setWindowIcon(appIcon);
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     qRegisterMetaType<awa::core::DownloadItem>("awa::core::DownloadItem");
+    qRegisterMetaType<QVector<awa::core::SharedPeerFlow>>("QVector<awa::core::SharedPeerFlow>");
 
     awa::core::SettingsService settings;
     awa::core::DownloadManager manager;
@@ -384,6 +389,7 @@ int main(int argc, char* argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("appLogoSource"), logoUrl);
     engine.rootContext()->setContextProperty(QStringLiteral("appPosterSource"), posterUrl);
     engine.rootContext()->setContextProperty(QStringLiteral("appQPosterSource"), qPosterUrl);
+    engine.rootContext()->setContextProperty(QStringLiteral("appWorldDotsSource"), worldDotsUrl);
     engine.loadFromModule("AwaKurageDownloader", "Main");
 
     if (engine.rootObjects().isEmpty()) {

@@ -8,6 +8,7 @@
       "features": ["gui", "network", "png", "sql", "sql-sqlite", "widgets"]
     },
     "qtdeclarative",
+    "qtquick3d",
     "qtwebsockets",
     "qtshadertools",
     "libtorrent",

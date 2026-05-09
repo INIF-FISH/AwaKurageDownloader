@@ -3,5 +3,7 @@
         <file alias="images/logo.png">APP.png</file>
         <file alias="images/poster.png">Poster.png</file>
         <file alias="images/qposter.png">QPoster.png</file>
+        <file alias="maps/world_points.json">world_map_points.json</file>
+        <file alias="maps/world_dots.png">world_map_dots.png</file>
     </qresource>
 </RCC>

@@ -19,6 +19,7 @@
 #include <libtorrent/alert_types.hpp>
 #include <libtorrent/error_code.hpp>
 #include <libtorrent/magnet_uri.hpp>
+#include <libtorrent/peer_info.hpp>
 #include <libtorrent/read_resume_data.hpp>
 #include <libtorrent/settings_pack.hpp>
 #include <libtorrent/torrent_info.hpp>
@@ -44,6 +45,7 @@ constexpr int ProbeEvaluationSamples = 8;
 constexpr int ProbeCooldownSamples = 5;
 constexpr int ProbeMinGainPermille = 30;
 constexpr int ProbeLossPermille = 30;
+constexpr int MaxSharedPeerFlows = 48;
 
 QString hashId(const lt::info_hash_t& hashes)
 {
@@ -120,6 +122,40 @@ double jsonDouble(const QJsonObject& object, const QString& key)
 bool pieceMapHasProgress(const QString& map)
 {
     return map.contains(QLatin1Char('1')) || map.contains(QLatin1Char('2'));
+}
+
+quint32 ipv4ToInt(const lt::address_v4& address)
+{
+    return address.to_uint();
+}
+
+bool isPublicAddress(const lt::address& address)
+{
+    if (address.is_loopback() || address.is_unspecified() || address.is_multicast()) {
+        return false;
+    }
+
+    if (address.is_v4()) {
+        const quint32 value = ipv4ToInt(address.to_v4());
+        const quint8 a = static_cast<quint8>((value >> 24) & 0xff);
+        const quint8 b = static_cast<quint8>((value >> 16) & 0xff);
+        if (a == 10 || a == 127 || a == 0) return false;
+        if (a == 100 && b >= 64 && b <= 127) return false;
+        if (a == 169 && b == 254) return false;
+        if (a == 172 && b >= 16 && b <= 31) return false;
+        if (a == 192 && b == 168) return false;
+        if (a >= 224) return false;
+        return true;
+    }
+
+    if (address.is_v6()) {
+        const auto bytes = address.to_v6().to_bytes();
+        if ((bytes[0] & 0xfe) == 0xfc) return false;
+        if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) return false;
+        return true;
+    }
+
+    return false;
 }
 
 int completedPieceCount(const lt::typed_bitfield<lt::piece_index_t>& pieces)
@@ -1320,6 +1356,7 @@ void TorrentService::refreshStatuses()
         m_items.insert(item.id, item);
         emit itemUpdated(item);
     }
+    updateSharedPeerFlows();
     persistItems();
 }
 
@@ -1713,6 +1750,85 @@ void TorrentService::updateProbePieceSelection(
 
     probe.deadlinePieces = nextDeadlinePieces;
     probe.unhealthyPieces = nextUnhealthyPieces;
+}
+
+void TorrentService::updateSharedPeerFlows()
+{
+    QVector<awa::core::SharedPeerFlow> flows;
+
+    for (auto it = m_handles.cbegin(); it != m_handles.cend(); ++it) {
+        const QString id = it.key();
+        const auto handle = it.value();
+        if (!handle.is_valid() || shouldIgnoreId(id)) {
+            continue;
+        }
+
+        std::vector<lt::peer_info> peers;
+        handle.get_peer_info(peers);
+        const auto item = m_items.value(id);
+        QString taskName = item.name;
+        if (taskName.isEmpty()) {
+            taskName = item.source;
+        }
+        if (taskName.isEmpty()) {
+            taskName = id;
+        }
+
+        for (const auto& peer : peers) {
+            const auto address = peer.ip.address();
+            if (!isPublicAddress(address)) {
+                continue;
+            }
+
+            const qint64 downloadRate = std::max(0, peer.payload_down_speed);
+            const qint64 uploadRate = std::max(0, peer.payload_up_speed);
+            if (downloadRate <= 0 && uploadRate <= 0) {
+                continue;
+            }
+
+            const QString addressText = QString::fromStdString(address.to_string());
+            if (downloadRate > 0) {
+                flows.append({
+                    id,
+                    taskName,
+                    addressText,
+                    static_cast<int>(peer.ip.port()),
+                    {},
+                    0.0,
+                    0.0,
+                    downloadRate,
+                    0,
+                    QStringLiteral("download")
+                });
+            }
+            if (uploadRate > 0) {
+                flows.append({
+                    id,
+                    taskName,
+                    addressText,
+                    static_cast<int>(peer.ip.port()),
+                    {},
+                    0.0,
+                    0.0,
+                    0,
+                    uploadRate,
+                    QStringLiteral("upload")
+                });
+            }
+        }
+    }
+
+    std::sort(flows.begin(), flows.end(), [](const auto& left, const auto& right) {
+        const qint64 leftRate = left.direction == QStringLiteral("upload") ? left.uploadRate : left.downloadRate;
+        const qint64 rightRate = right.direction == QStringLiteral("upload") ? right.uploadRate : right.downloadRate;
+        return leftRate > rightRate;
+    });
+
+    if (flows.size() > MaxSharedPeerFlows) {
+        flows.resize(MaxSharedPeerFlows);
+    }
+
+    emit sharedPeerFlowsUpdated(flows);
 }
 
 void TorrentService::updateDownloadQueue()

@@ -18,7 +18,7 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Network Sql WebSockets)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Quick3D Network Sql WebSockets)
 find_package(spdlog CONFIG REQUIRED)
 find_package(LibtorrentRasterbar CONFIG REQUIRED)
 

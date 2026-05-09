@@ -97,6 +97,7 @@ private:
         const libtorrent::torrent_handle& handle,
         const libtorrent::torrent_status& status,
         const std::vector<libtorrent::partial_piece_info>& downloadingPieces);
+    void updateSharedPeerFlows();
     void updateDownloadQueue();
     void updateSeedingPriority();
 

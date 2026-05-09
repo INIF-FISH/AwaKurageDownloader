@@ -24,6 +24,11 @@ DownloadListModel* DownloadManager::downloads()
     return &m_downloads;
 }
 
+SharedPeerFlowModel* DownloadManager::sharedPeerFlows()
+{
+    return &m_sharedPeerFlows;
+}
+
 QString DownloadManager::defaultSavePath() const
 {
     return m_defaultSavePath;
@@ -128,6 +133,7 @@ void DownloadManager::setBackend(TorrentBackend* backend)
         }
     });
     connect(m_backend, &TorrentBackend::itemRemoved, &m_downloads, &DownloadListModel::removeById);
+    connect(m_backend, &TorrentBackend::sharedPeerFlowsUpdated, this, &DownloadManager::updateSharedPeerFlows);
     connect(m_backend, &TorrentBackend::errorRaised, this, &DownloadManager::toastRequested);
     m_backend->setSpeedLimits(m_downloadLimitKiB, m_uploadLimitKiB);
     m_backend->setChokingStrategy(m_chokingAlgorithm, m_seedChokingAlgorithm, m_uploadSlots, m_optimisticSlots);
@@ -294,6 +300,26 @@ QStringList DownloadManager::parseTrackerUrls(const QString& text) const
         }
     }
     return result;
+}
+
+void DownloadManager::updateSharedPeerFlows(const QVector<SharedPeerFlow>& flows)
+{
+    QVector<SharedPeerFlow> resolved;
+    resolved.reserve(flows.size());
+
+    for (auto flow : flows) {
+        const auto location = m_geoIp.lookup(flow.address);
+        if (!location.valid) {
+            continue;
+        }
+
+        flow.region = location.region;
+        flow.latitude = location.latitude;
+        flow.longitude = location.longitude;
+        resolved.append(flow);
+    }
+
+    m_sharedPeerFlows.replaceAll(resolved);
 }
 
 } // namespace awa::core

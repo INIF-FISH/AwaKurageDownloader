@@ -46,6 +46,7 @@ ApplicationWindow {
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
     readonly property var pageTitles: [
         I18n.tr("下载任务", "Downloads"),
+        I18n.tr("共享节点", "Sharing Nodes"),
         I18n.tr("RSS 订阅", "RSS"),
         I18n.tr("远程 API", "Remote API"),
         I18n.tr("设置", "Settings")
@@ -633,9 +634,10 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 6
                     SidebarButton { Layout.fillWidth: true; text: I18n.tr("下载任务", "Downloads"); iconText: "↓"; active: currentPage === 0; onClicked: currentPage = 0 }
-                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("RSS 订阅", "RSS"); iconText: "≋"; active: currentPage === 1; onClicked: currentPage = 1 }
-                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("远程 API", "Remote API"); iconText: "{}"; active: currentPage === 2; onClicked: currentPage = 2 }
-                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("设置", "Settings"); iconText: "⚙"; active: currentPage === 3; onClicked: currentPage = 3 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("共享节点", "Sharing Nodes"); iconText: "◇"; active: currentPage === 1; onClicked: currentPage = 1 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("RSS 订阅", "RSS"); iconText: "≋"; active: currentPage === 2; onClicked: currentPage = 2 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("远程 API", "Remote API"); iconText: "{}"; active: currentPage === 3; onClicked: currentPage = 3 }
+                    SidebarButton { Layout.fillWidth: true; text: I18n.tr("设置", "Settings"); iconText: "⚙"; active: currentPage === 4; onClicked: currentPage = 4 }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -1171,6 +1173,17 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 color: AwaTheme.page
 
+                SharedGlobe {
+                    anchors.fill: parent
+                }
+            }
+
+            Rectangle {
+                visible: currentPage === 2
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: AwaTheme.page
+
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: 24
@@ -1235,7 +1248,7 @@ ApplicationWindow {
             }
 
             Rectangle {
-                visible: currentPage === 2
+                visible: currentPage === 3
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: AwaTheme.page
@@ -1295,7 +1308,7 @@ ApplicationWindow {
             }
 
             Rectangle {
-                visible: currentPage === 3
+                visible: currentPage === 4
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: AwaTheme.page

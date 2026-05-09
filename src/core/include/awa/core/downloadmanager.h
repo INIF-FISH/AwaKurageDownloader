@@ -2,6 +2,8 @@
 
 #include "awa/core/downloaditem.h"
 #include "awa/core/downloadlistmodel.h"
+#include "awa/core/localgeoipdatabase.h"
+#include "awa/core/sharedpeerflowmodel.h"
 
 #include <QObject>
 #include <QPointer>
@@ -34,12 +36,14 @@ public:
 signals:
     void itemUpdated(const awa::core::DownloadItem& item);
     void itemRemoved(const QString& id);
+    void sharedPeerFlowsUpdated(const QVector<awa::core::SharedPeerFlow>& flows);
     void errorRaised(const QString& message);
 };
 
 class DownloadManager final : public QObject {
     Q_OBJECT
     Q_PROPERTY(awa::core::DownloadListModel* downloads READ downloads CONSTANT)
+    Q_PROPERTY(awa::core::SharedPeerFlowModel* sharedPeerFlows READ sharedPeerFlows CONSTANT)
     Q_PROPERTY(QString defaultSavePath READ defaultSavePath WRITE setDefaultSavePath NOTIFY defaultSavePathChanged)
     Q_PROPERTY(int downloadLimitKiB READ downloadLimitKiB NOTIFY speedLimitsChanged)
     Q_PROPERTY(int uploadLimitKiB READ uploadLimitKiB NOTIFY speedLimitsChanged)
@@ -56,6 +60,7 @@ public:
     explicit DownloadManager(QObject* parent = nullptr);
 
     DownloadListModel* downloads();
+    SharedPeerFlowModel* sharedPeerFlows();
     QString defaultSavePath() const;
     void setDefaultSavePath(const QString& path);
     int downloadLimitKiB() const;
@@ -97,8 +102,11 @@ signals:
 private:
     DownloadOptions parseOptions(const QVariantMap& options) const;
     QStringList parseTrackerUrls(const QString& text) const;
+    void updateSharedPeerFlows(const QVector<SharedPeerFlow>& flows);
 
     DownloadListModel m_downloads;
+    SharedPeerFlowModel m_sharedPeerFlows;
+    LocalGeoIpDatabase m_geoIp;
     QPointer<TorrentBackend> m_backend;
     QString m_defaultSavePath;
     int m_downloadLimitKiB = 0;
