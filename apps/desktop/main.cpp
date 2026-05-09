@@ -299,7 +299,7 @@ int main(int argc, char* argv[])
     installStartupLogger();
     QApplication::setApplicationName(QStringLiteral("AwaKurageDownloader"));
     QApplication::setOrganizationName(QStringLiteral("AwaKurage"));
-    QApplication::setApplicationVersion(QStringLiteral("0.1.1"));
+    QApplication::setApplicationVersion(QStringLiteral("0.1.2"));
 
     auto singleInstanceLock = createSingleInstanceLock();
     if (!singleInstanceLock) {

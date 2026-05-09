@@ -552,7 +552,7 @@ TorrentService::TorrentService(QObject* parent)
     settings.set_bool(lt::settings_pack::piece_extent_affinity, false);
     settings.set_bool(lt::settings_pack::prioritize_partial_pieces, false);
     settings.set_bool(lt::settings_pack::prefer_rc4, true);
-    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.1");
+    settings.set_str(lt::settings_pack::user_agent, "AwaKurageDownloader/0.1.2");
     settings.set_str(lt::settings_pack::listen_interfaces, "0.0.0.0:6881-6891,[::]:6881-6891");
     settings.set_str(lt::settings_pack::dht_bootstrap_nodes,
         "router.bittorrent.com:6881,dht.transmissionbt.com:6881,router.utorrent.com:6881,"

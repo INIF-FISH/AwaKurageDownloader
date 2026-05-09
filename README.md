@@ -16,7 +16,7 @@ AwaKurageDownloader 是一个基于 Qt 6 和 libtorrent 的桌面 BitTorrent 下
 
 ## 项目状态
 
-当前版本是 `0.1.1`，仍处在早期开发阶段。核心结构已经拆分完成，桌面端、BT 会话、RSS 服务、本地 API 和设置管理都在独立模块中维护，但功能细节和界面文本仍会继续打磨。
+当前版本是 `0.1.2`，仍处在早期开发阶段。核心结构已经拆分完成，桌面端、BT 会话、RSS 服务、本地 API 和设置管理都在独立模块中维护，但功能细节和界面文本仍会继续打磨。
 
 如果你只是想试用，请把它当作一个正在成长中的下载器；如果你想参与开发，欢迎从小问题、构建体验和文档开始。
 
@@ -88,13 +88,13 @@ cmake --build build/windows-msvc --target package
 安装包默认输出类似：
 
 ```text
-AwaKurageDownloader-0.1.1-win64.msi
+AwaKurageDownloader-0.1.2-win64.msi
 ```
 
 如果系统里没有可用的 WiX Toolset，打包流程会回退生成：
 
 ```text
-AwaKurageDownloader-0.1.1-win64-portable.zip
+AwaKurageDownloader-0.1.2-win64-portable.zip
 ```
 
 更多细节见 [docs/packaging.md](docs/packaging.md)。
