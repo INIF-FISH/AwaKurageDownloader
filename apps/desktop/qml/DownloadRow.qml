@@ -25,7 +25,8 @@ Rectangle {
     property bool selected: false
     readonly property string displayName: taskName.length > 0 ? taskName : I18n.tr("未命名任务", "Unnamed task")
     readonly property string displayStatus: statusText.length > 0 ? I18n.dynamic(statusText) : localizedStateText()
-    readonly property int progressPercent: Math.round(progress * 100)
+    readonly property real displayProgress: Math.max(0, Math.min(1, progress))
+    readonly property int progressPercent: Math.round(displayProgress * 100)
     readonly property int downloadKiB: Math.round(downloadRate / 1024)
     readonly property int uploadKiB: Math.round(uploadRate / 1024)
     readonly property real remainingBytes: Math.max(0, totalBytes - downloadedBytes)
@@ -33,24 +34,25 @@ Rectangle {
     readonly property bool completed: isComplete
     readonly property bool seeding: state === 4 || state === 7
     readonly property bool finished: state === 5
-    readonly property bool terminal: state === 5 || state === 6
+    readonly property bool deleted: state === 9
+    readonly property bool terminal: state === 5 || state === 6 || deleted
     readonly property bool paused: state === 3 || state === 7
     readonly property bool waiting: state === 8
     readonly property color rowColor: selected
-        ? (completed ? "#eefcf4" : waiting ? "#fff8ed" : "#f2f9ff")
+        ? (deleted ? "#fff1f2" : completed ? "#eefcf4" : waiting ? "#fff8ed" : "#f2f9ff")
         : hoverHandler.hovered
-            ? (completed ? "#f6fdf8" : waiting ? "#fffbf4" : "#fbfdff")
-            : (completed ? "#f7fff9" : waiting ? "#fffaf0" : "#ffffff")
+            ? (deleted ? "#fff7f7" : completed ? "#f6fdf8" : waiting ? "#fffbf4" : "#fbfdff")
+            : (deleted ? "#fffafa" : completed ? "#f7fff9" : waiting ? "#fffaf0" : "#ffffff")
     readonly property color accentColor: selected
-        ? (finished ? "#16a34a" : seeding ? "#0f9fb8" : waiting ? "#f59e0b" : "#2d8df0")
+        ? (deleted ? "#dc2626" : finished ? "#16a34a" : seeding ? "#0f9fb8" : waiting ? "#f59e0b" : "#2d8df0")
         : hoverHandler.hovered
-            ? (finished ? "#22c55e" : seeding ? "#22cbd6" : waiting ? "#fbbf24" : "#80b8ee")
-            : (finished ? "#86efac" : seeding ? "#99f6e4" : completed ? "#b7ebc9" : waiting ? "#fde68a" : "#d9ecff")
-    readonly property color badgeColor: finished ? "#ecfdf3" : seeding ? "#ecfeff" : waiting ? "#fffbeb" : "#eef7ff"
-    readonly property color badgeTextColor: finished ? "#15803d" : seeding ? "#0f766e" : waiting ? "#b45309" : "#dc2626"
-    readonly property color progressTrackColor: completed ? "#dcfce7" : waiting ? "#fef3c7" : "#fff3e6"
-    readonly property color progressTrackBorderColor: completed ? "#a7f3d0" : waiting ? "#fde68a" : "#ffd7a8"
-    readonly property color progressFillColor: finished ? "#22c55e" : seeding ? "#14b8a6" : waiting ? "#f59e0b" : "#f97316"
+            ? (deleted ? "#ef4444" : finished ? "#22c55e" : seeding ? "#22cbd6" : waiting ? "#fbbf24" : "#80b8ee")
+            : (deleted ? "#fecaca" : finished ? "#86efac" : seeding ? "#99f6e4" : completed ? "#b7ebc9" : waiting ? "#fde68a" : "#d9ecff")
+    readonly property color badgeColor: deleted ? "#fff1f2" : finished ? "#ecfdf3" : seeding ? "#ecfeff" : waiting ? "#fffbeb" : "#eef7ff"
+    readonly property color badgeTextColor: deleted ? "#b91c1c" : finished ? "#15803d" : seeding ? "#0f766e" : waiting ? "#b45309" : "#dc2626"
+    readonly property color progressTrackColor: deleted ? "#fee2e2" : completed ? "#dcfce7" : waiting ? "#fef3c7" : "#fff3e6"
+    readonly property color progressTrackBorderColor: deleted ? "#fecaca" : completed ? "#a7f3d0" : waiting ? "#fde68a" : "#ffd7a8"
+    readonly property color progressFillColor: deleted ? "#ef4444" : finished ? "#22c55e" : seeding ? "#14b8a6" : waiting ? "#f59e0b" : "#f97316"
 
     signal openDetails(var item)
     signal pauseTask(string id)
@@ -107,6 +109,7 @@ Rectangle {
         case 6: return I18n.tr("错误", "Error")
         case 7: return I18n.tr("暂停做种", "Paused seeding")
         case 8: return I18n.tr("等待下载", "Waiting")
+        case 9: return I18n.tr("已删除", "Deleted")
         default: return stateText.length > 0 ? I18n.dynamic(stateText) : I18n.tr("未知", "Unknown")
         }
     }
@@ -195,7 +198,7 @@ Rectangle {
                     Layout.minimumWidth: 96
                     from: 0
                     to: 1
-                    value: rowRoot.progress
+                    value: rowRoot.displayProgress
                     background: Rectangle {
                         implicitHeight: 8
                         radius: 4
@@ -205,7 +208,7 @@ Rectangle {
                     contentItem: Item {
                         implicitHeight: 8
                         Rectangle {
-                            width: parent.width * rowRoot.progress
+                            width: parent.width * rowRoot.displayProgress
                             height: parent.height
                             radius: 4
                             color: progressFillColor

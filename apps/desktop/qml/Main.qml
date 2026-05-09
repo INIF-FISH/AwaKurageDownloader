@@ -41,9 +41,10 @@ ApplicationWindow {
     readonly property bool selectedIsComplete: selectedDownload.isComplete === true
     readonly property string selectedStateText: selectedDownload.stateText || ""
     readonly property bool selectedIsPaused: selectedState === 3 || selectedState === 7
-    readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6
+    readonly property bool selectedIsTerminal: selectedState === 5 || selectedState === 6 || selectedState === 9
     readonly property bool selectedCanPause: hasSelectedDownload && !selectedIsPaused && !selectedIsTerminal
     readonly property bool selectedCanResume: hasSelectedDownload && selectedIsPaused
+    readonly property real selectedDisplayProgress: Math.max(0, Math.min(1, selectedDownload.progress || 0))
     readonly property var pageTitles: [
         I18n.tr("下载任务", "Downloads"),
         I18n.tr("共享节点", "Sharing Nodes"),
@@ -125,7 +126,7 @@ ApplicationWindow {
     }
 
     function isCompletedDownload(item) {
-        return item && item.isComplete === true
+        return item && (item.isComplete === true || item.state === 9)
     }
 
     function matchesDownloadSection(item) {
@@ -924,7 +925,7 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             from: 0
                             to: 1
-                            value: selectedDownload.progress || 0
+                            value: selectedDisplayProgress
                             background: Rectangle {
                                 implicitHeight: 9
                                 radius: 5
@@ -934,7 +935,7 @@ ApplicationWindow {
                             contentItem: Item {
                                 implicitHeight: 9
                                 Rectangle {
-                                    width: parent.width * (selectedDownload.progress || 0)
+                                    width: parent.width * selectedDisplayProgress
                                     height: parent.height
                                     radius: 5
                                     color: "#f97316"

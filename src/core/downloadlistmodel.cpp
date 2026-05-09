@@ -30,6 +30,7 @@ QString stateToString(DownloadState state)
     case DownloadState::Error: return QStringLiteral("错误");
     case DownloadState::PausedSeeding: return QStringLiteral("暂停做种");
     case DownloadState::Waiting: return QStringLiteral("等待下载");
+    case DownloadState::Deleted: return QStringLiteral("已删除");
     }
     return QStringLiteral("未知");
 }

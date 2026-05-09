@@ -15,7 +15,8 @@ enum class DownloadState {
     Finished = 5,
     Error = 6,
     PausedSeeding = 7,
-    Waiting = 8
+    Waiting = 8,
+    Deleted = 9
 };
 
 struct DownloadOptions {
