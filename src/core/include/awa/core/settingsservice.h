@@ -42,6 +42,9 @@ public:
     Q_INVOKABLE QString defaultTrackerUrlsText() const;
     Q_INVOKABLE QString language() const;
     Q_INVOKABLE void setLanguage(const QString& language);
+    Q_INVOKABLE bool downloadCompletionSoundEnabled() const;
+    Q_INVOKABLE void setDownloadCompletionSoundEnabled(bool enabled);
+    Q_INVOKABLE void playDownloadCompleteSound() const;
 
 private:
     QString m_settingsPath;

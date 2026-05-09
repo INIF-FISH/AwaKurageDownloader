@@ -19,6 +19,7 @@ ApplicationWindow {
     property var selectedDownload: ({})
     property string toastText: ""
     property string selectedLanguage: ""
+    property bool completionSoundEnabled: true
     property int currentPage: 0
     property int downloadSectionTab: 0
     property int downloadsRevision: 0
@@ -146,6 +147,15 @@ ApplicationWindow {
         return isCompletedState(item.state) ? 1 : 0
     }
 
+    function maybePlayDownloadCompleteSound(item, initialLoad, previousSection, section) {
+        if (initialLoad || !completionSoundEnabled || !item || section !== 1) {
+            return
+        }
+        if (previousSection === 0) {
+            settingsService.playDownloadCompleteSound()
+        }
+    }
+
     function markCurrentDownloadTabSeen() {
         if (currentPage !== 0) {
             return
@@ -180,6 +190,7 @@ ApplicationWindow {
 
             const hasPreviousSection = Object.prototype.hasOwnProperty.call(downloadTabSnapshot, item.downloadId)
             const previousSection = downloadTabSnapshot[item.downloadId]
+            maybePlayDownloadCompleteSound(item, initialLoad, previousSection, section)
             const shouldCountBadge = !initialLoad && downloadTabBadgesReady && section >= 0
                 && (!hasPreviousSection || previousSection !== section)
             if (shouldCountBadge) {
@@ -314,6 +325,7 @@ ApplicationWindow {
     Component.onCompleted: {
         selectedLanguage = settingsService.language()
         I18n.language = selectedLanguage
+        completionSoundEnabled = settingsService.downloadCompletionSoundEnabled()
         refreshDownloadTabBadges(true)
         downloadTabBadgeReadyTimer.start()
     }
@@ -1307,20 +1319,20 @@ ApplicationWindow {
 
                         Panel {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: settingsContent.implicitHeight + 40
+                            Layout.preferredHeight: appSettingsContent.implicitHeight + 40
 
                             ColumnLayout {
-                                id: settingsContent
+                                id: appSettingsContent
                                 anchors.fill: parent
                                 anchors.margins: 20
                                 spacing: 14
-                                SectionTitle { text: I18n.tr("下载设置", "Download Settings") }
-                                RowLayout {
+                                SectionTitle { text: I18n.tr("应用与提醒", "App and Alerts") }
+                                GridLayout {
                                     Layout.fillWidth: true
-                                    LabelText {
-                                        Layout.preferredWidth: 96
-                                        text: I18n.tr("界面语言", "Language")
-                                    }
+                                    columns: 2
+                                    rowSpacing: 12
+                                    columnSpacing: 18
+                                    LabelText { text: I18n.tr("界面语言", "Language") }
                                     ComboBox {
                                         id: languageBox
                                         Layout.fillWidth: true
@@ -1349,7 +1361,30 @@ ApplicationWindow {
                                             }
                                         }
                                     }
+                                    LabelText { text: I18n.tr("完成声音提示", "Completion Sound") }
+                                    Switch {
+                                        Layout.fillWidth: true
+                                        checked: completionSoundEnabled
+                                        text: checked ? I18n.tr("下载完成时播放提示音", "Play sound when downloads finish") : I18n.tr("下载完成时保持安静", "Stay quiet when downloads finish")
+                                        onToggled: {
+                                            completionSoundEnabled = checked
+                                            settingsService.setDownloadCompletionSoundEnabled(checked)
+                                        }
+                                    }
                                 }
+                            }
+                        }
+
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: downloadSettingsContent.implicitHeight + 40
+
+                            ColumnLayout {
+                                id: downloadSettingsContent
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
+                                SectionTitle { text: I18n.tr("下载设置", "Download Settings") }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     TextField {
@@ -1403,11 +1438,23 @@ ApplicationWindow {
                                             downloadManager.setSpeedLimits(dlLimit, ulLimit)
                                             settingsService.setDownloadLimitKiB(dlLimit)
                                             settingsService.setUploadLimitKiB(ulLimit)
+                                            showToast(I18n.tr("限速已应用", "Speed limits applied"))
                                         }
                                     }
                                 }
-                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
-                                Text { text: I18n.tr("块选择与上传博弈", "Piece Selection and Choking"); color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            }
+                        }
+
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: strategySettingsContent.implicitHeight + 40
+
+                            ColumnLayout {
+                                id: strategySettingsContent
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
+                                SectionTitle { text: I18n.tr("块选择与上传博弈", "Piece Selection and Choking") }
                                 GridLayout {
                                     Layout.fillWidth: true
                                     columns: 2
@@ -1465,11 +1512,23 @@ ApplicationWindow {
                                             settingsService.setSeedOnCompletionEnabled(seedOnCompletionSwitch.checked)
                                             settingsService.setUploadSlots(uploadSlotsSpin.value)
                                             settingsService.setOptimisticSlots(optimisticSlotsSpin.value)
+                                            showToast(I18n.tr("稀有块优先与上传博弈策略已应用", "Piece selection and choking strategy applied"))
                                         }
                                     }
                                 }
-                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
-                                Text { text: I18n.tr("Trackers", "Trackers"); color: AwaTheme.ink; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            }
+                        }
+
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: trackerSettingsContent.implicitHeight + 40
+
+                            ColumnLayout {
+                                id: trackerSettingsContent
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
+                                SectionTitle { text: I18n.tr("Trackers", "Trackers") }
                                 ScrollView {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 188
@@ -1517,7 +1576,19 @@ ApplicationWindow {
                                         }
                                     }
                                 }
-                                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: AwaTheme.border }
+                            }
+                        }
+
+                        Panel {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: serviceSettingsContent.implicitHeight + 40
+
+                            ColumnLayout {
+                                id: serviceSettingsContent
+                                anchors.fill: parent
+                                anchors.margins: 20
+                                spacing: 14
+                                SectionTitle { text: I18n.tr("后台服务", "Background Services") }
                                 RowLayout {
                                     Layout.fillWidth: true
                                     TextField {

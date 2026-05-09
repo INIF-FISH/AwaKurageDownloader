@@ -5,6 +5,11 @@
 #include <QStandardPaths>
 
 #include <algorithm>
+#include <cstdio>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace awa::core {
 namespace {
@@ -227,6 +232,28 @@ void SettingsService::setLanguage(const QString& language)
         language == QStringLiteral("en_US") || language == QStringLiteral("ja_JP")
             ? language
             : QStringLiteral("zh_CN"));
+}
+
+bool SettingsService::downloadCompletionSoundEnabled() const
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    return settings.value(QStringLiteral("notifications/downloadCompletionSoundEnabled"), true).toBool();
+}
+
+void SettingsService::setDownloadCompletionSoundEnabled(bool enabled)
+{
+    QSettings settings(m_settingsPath, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("notifications/downloadCompletionSoundEnabled"), enabled);
+}
+
+void SettingsService::playDownloadCompleteSound() const
+{
+#ifdef Q_OS_WIN
+    MessageBeep(MB_OK);
+#else
+    std::fputc('\a', stderr);
+    std::fflush(stderr);
+#endif
 }
 
 } // namespace awa::core
