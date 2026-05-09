@@ -359,6 +359,12 @@ int main(int argc, char* argv[])
         &trayController, &TrayController::setLanguage);
     QObject::connect(&manager, &awa::core::DownloadManager::downloadCompleted,
         &trayController, &TrayController::showDownloadCompleted);
+    QObject::connect(&manager, &awa::core::DownloadManager::downloadCompleted,
+        &settings, [&settings](const awa::core::DownloadItem&) {
+            if (settings.downloadCompletionSoundEnabled()) {
+                settings.playDownloadCompleteSound();
+            }
+        });
     if (singleInstanceServer) {
         QObject::connect(singleInstanceServer.get(), &QLocalServer::newConnection, &trayController, [&trayController, server = singleInstanceServer.get()] {
             while (auto* socket = server->nextPendingConnection()) {

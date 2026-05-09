@@ -152,15 +152,6 @@ ApplicationWindow {
         return isCompletedDownload(item) ? 1 : 0
     }
 
-    function maybePlayDownloadCompleteSound(item, initialLoad, previousSection, section) {
-        if (initialLoad || !completionSoundEnabled || !item || section !== 1) {
-            return
-        }
-        if (previousSection === 0) {
-            settingsService.playDownloadCompleteSound()
-        }
-    }
-
     function markCurrentDownloadTabSeen() {
         if (currentPage !== 0) {
             return
@@ -195,7 +186,6 @@ ApplicationWindow {
 
             const hasPreviousSection = Object.prototype.hasOwnProperty.call(downloadTabSnapshot, item.downloadId)
             const previousSection = downloadTabSnapshot[item.downloadId]
-            maybePlayDownloadCompleteSound(item, initialLoad, previousSection, section)
             const shouldCountBadge = !initialLoad && downloadTabBadgesReady && section >= 0
                 && (!hasPreviousSection || previousSection !== section)
             if (shouldCountBadge) {
