@@ -13,6 +13,8 @@ Item {
     property var ringDots: buildRingDots(28, 2.4)
     property real flowPhase: 0
     property quaternion globeRotation: Qt.quaternion(1, 0, 0, 0)
+    property real globeYaw: 0
+    property real globeAngularVelocity: 0
     property int flowsRevision: 0
     readonly property int flowLimit: 32
     readonly property int peerCount: {
@@ -159,6 +161,15 @@ Item {
         globeRotation = normalizeQuaternion(multiplyQuaternion(delta, globeRotation))
     }
 
+    function applyGlobeYaw(deltaDegrees) {
+        globeYaw = (globeYaw + deltaDegrees) % 360
+        globeRotation = Quaternion.fromAxisAndAngle(Qt.vector3d(0, 1, 0), globeYaw)
+    }
+
+    function rotateGlobeHorizontally(deltaX) {
+        applyGlobeYaw(deltaX * 0.34)
+    }
+
     function arcPosition(start, end, amount) {
         const lift = Math.sin(amount * Math.PI) * 46
         const mixed = Qt.vector3d(
@@ -202,6 +213,20 @@ Item {
         to: 1
         duration: 1800
         loops: Animation.Infinite
+    }
+
+    Timer {
+        id: inertiaTimer
+        interval: 16
+        repeat: true
+        onTriggered: {
+            root.applyGlobeYaw(root.globeAngularVelocity * interval / 1000)
+            root.globeAngularVelocity *= 0.94
+            if (Math.abs(root.globeAngularVelocity) < 1) {
+                root.globeAngularVelocity = 0
+                stop()
+            }
+        }
     }
 
     function tangentA(normal) {
@@ -382,10 +407,14 @@ Item {
             cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
             acceptedButtons: Qt.LeftButton
 
-            property vector3d lastVector: Qt.vector3d(0, 0, 1)
+            property real lastX: 0
+            property real lastMoveTime: 0
 
             onPressed: mouse => {
-                lastVector = root.trackballVector(mouse.x, mouse.y, width, height)
+                inertiaTimer.stop()
+                root.globeAngularVelocity = 0
+                lastX = mouse.x
+                lastMoveTime = Date.now()
             }
 
             onPositionChanged: mouse => {
@@ -393,9 +422,25 @@ Item {
                     return
                 }
 
-                const nextVector = root.trackballVector(mouse.x, mouse.y, width, height)
-                root.rotateGlobeByDrag(lastVector, nextVector)
-                lastVector = nextVector
+                const now = Date.now()
+                const deltaX = mouse.x - lastX
+                const elapsed = Math.max(1, now - lastMoveTime)
+                root.rotateGlobeHorizontally(deltaX)
+                root.globeAngularVelocity = deltaX * 0.34 * 1000 / elapsed
+                lastX = mouse.x
+                lastMoveTime = now
+            }
+
+            onReleased: {
+                if (Math.abs(root.globeAngularVelocity) >= 1) {
+                    inertiaTimer.restart()
+                }
+            }
+
+            onCanceled: {
+                if (Math.abs(root.globeAngularVelocity) >= 1) {
+                    inertiaTimer.restart()
+                }
             }
         }
     }
@@ -422,10 +467,6 @@ Item {
                 columnSpacing: 18
                 Text { text: I18n.tr("活跃流", "Active flows"); color: AwaTheme.muted; font.pixelSize: 12 }
                 Text { text: root.peerCount; color: AwaTheme.ink; font.pixelSize: 12; font.weight: Font.DemiBold }
-                Text { text: I18n.tr("上传", "Upload"); color: AwaTheme.muted; font.pixelSize: 12 }
-                Text { text: root.formatBytes(root.totalUploadRate); color: "#168451"; font.pixelSize: 12; font.weight: Font.DemiBold }
-                Text { text: I18n.tr("下载", "Download"); color: AwaTheme.muted; font.pixelSize: 12 }
-                Text { text: root.formatBytes(root.totalDownloadRate); color: "#b4232b"; font.pixelSize: 12; font.weight: Font.DemiBold }
             }
             RowLayout {
                 Layout.fillWidth: true

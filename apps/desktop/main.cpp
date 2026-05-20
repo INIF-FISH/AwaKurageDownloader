@@ -110,6 +110,11 @@ public:
         m_mainWindow->requestActivate();
     }
 
+    void setCloseMessageShown(bool shown)
+    {
+        m_closeMessageShown = shown;
+    }
+
     Q_INVOKABLE bool closeToTray(QWindow* window)
     {
         if (!QSystemTrayIcon::isSystemTrayAvailable()) {
@@ -130,6 +135,7 @@ public:
                 QSystemTrayIcon::Information,
                 2500);
             m_closeMessageShown = true;
+            emit closeMessageShown(true);
         }
         return true;
     }
@@ -154,6 +160,9 @@ public:
             QSystemTrayIcon::Information,
             5000);
     }
+
+signals:
+    void closeMessageShown(bool shown);
 
 private slots:
     void quitFromTray()
@@ -360,8 +369,11 @@ int main(int argc, char* argv[])
 
     TrayController trayController(appIcon);
     trayController.setLanguage(settings.language());
+    trayController.setCloseMessageShown(settings.closeToTrayMessageShown());
     QObject::connect(&settings, &awa::core::SettingsService::languageChanged,
         &trayController, &TrayController::setLanguage);
+    QObject::connect(&trayController, &TrayController::closeMessageShown,
+        &settings, &awa::core::SettingsService::setCloseToTrayMessageShown);
     QObject::connect(&manager, &awa::core::DownloadManager::downloadCompleted,
         &trayController, &TrayController::showDownloadCompleted);
     QObject::connect(&manager, &awa::core::DownloadManager::downloadCompleted,

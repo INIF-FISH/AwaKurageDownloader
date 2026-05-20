@@ -44,6 +44,8 @@ public:
     Q_INVOKABLE void setLanguage(const QString& language);
     Q_INVOKABLE bool downloadCompletionSoundEnabled() const;
     Q_INVOKABLE void setDownloadCompletionSoundEnabled(bool enabled);
+    Q_INVOKABLE bool closeToTrayMessageShown() const;
+    Q_INVOKABLE void setCloseToTrayMessageShown(bool shown);
     Q_INVOKABLE void playDownloadCompleteSound() const;
 
 signals:
